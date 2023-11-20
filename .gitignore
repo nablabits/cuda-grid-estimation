@@ -1,0 +1,10 @@
+# vscode
+.vscode
+
+# pyenv
+.python-version
+
+# vim
+.vim
+.swp
+tags
