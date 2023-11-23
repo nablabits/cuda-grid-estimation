@@ -4,7 +4,7 @@
 #include <curand_kernel.h>
 
 
-// this is a macro, like a decorator
+// this is a macro
 #define CUDA_CALL(x) do { if((x) != cudaSuccess) { \
     printf("Error at %s:%d\n",__FILE__,__LINE__); \
     return EXIT_FAILURE;}} while(0)
@@ -32,49 +32,31 @@ __global__ void setup_kernel(curandState *state)
     curand_init(42, id, 0, &state[id]);
 }
 
-__global__ 
-void generateRandomVariates(float* randomNumbers, float mean, float stdev) {
-  int index = blockIdx.x * blockDim.x + threadIdx.x;
-
-  curandState_t state;  // init the state var
-  curand_init(42, index, 0, &state);
-
-  randomNumbers[index] = curand_normal(&state);
-}
-
 __global__ void generate_normal_kernel(curandState *state,
-                                int n,
-                                unsigned int *result)
+                                unsigned int n,
+                                float *result)
 {
     /* 
-    In this function we will be generating radom variates in pairs with 
-    curand_normal2 using the states defined in `setup_kernel`.
+    In this function we will be generating radom variates with curand_normal
+    using the states defined in `setup_kernel`.
     */
-    int id = threadIdx.x + blockIdx.x * blockDim.x;
-    unsigned int count = 0;
-
-    float2 x;  // define a pair of floats for curand_normal2
-    
-    /* Copy state to local memory for efficiency */
-    curandState localState = state[id];
+    int index = threadIdx.x + blockIdx.x * blockDim.x;
+    int stride = blockDim.x * gridDim.x;
+    float mu = 0.0f;
+    float sigma = 1.0f;
+    float rv;
     
     /* Generate pseudo-random normals */
-    for(int i = 0; i < n/2; i++) {
-        x = curand_normal2(&localState);
-        /* Check if within one standard deviaton */
-        if((x.x > -1.0) && (x.x < 1.0)) {
-            count++;
-        }
-        if((x.y > -1.0) && (x.y < 1.0)) {
-            count++;
-        }
-    }
+    for(int i = index; i < n; i += stride) {
+      /* Copy state to local memory for efficiency */
+      curandState localState = state[index];
 
-    /* Copy state back to global memory */
-    state[id] = localState;
-    
-    /* Store results */
-    result[id] += count;
+      rv = curand_normal(&localState);
+      result[i] = mu + sigma * rv;
+
+      /* Copy state back to global memory */
+      state[i] = localState;
+    }
 }
 
 
@@ -84,31 +66,30 @@ int main(void)
   const unsigned int blockCount = 64;
   const unsigned int totalThreads = threadsPerBlock * blockCount;  // 4096
 
-  float mu = 20.0f;
-  float sigma = 2.0f;
-  int numElements = 50;
+  unsigned int numElements = 50;
   curandState *devStates;
-  unsigned int *devResults, *hostResults;
+  float *devResults, *hostRVs;
 
 
   /* MEMORY ALLOCATION */
   // TODO: change this to cudaMallocManaged once is working
 
   /* Allocate space for results on host */
-  hostResults = (unsigned int *)calloc(totalThreads, sizeof(int));
+  hostRVs = (float *)calloc(totalThreads, sizeof(float));
 
   /* Allocate space for prng states on device */
   CUDA_CALL(
-    cudaMalloc((void **)&devStates, totalThreads *sizeof(curandState))
+    cudaMalloc(&devStates, totalThreads *sizeof(curandState))
   );
 
   /* Allocate space for results on device */
-  CUDA_CALL(cudaMalloc((void **)&devResults, totalThreads *
-            sizeof(unsigned int)));
+  CUDA_CALL(cudaMalloc(&devResults, totalThreads *
+            sizeof(float)));
+
 
   /* Set results to 0 */
   CUDA_CALL(cudaMemset(devResults, 0, totalThreads *
-            sizeof(unsigned int)));
+            sizeof(float)));
 
   setup_kernel<<<blockCount, threadsPerBlock>>>(devStates);
 
@@ -119,31 +100,27 @@ int main(void)
   cudaDeviceSynchronize();
 
   /* Copy device memory to host */
-  CUDA_CALL(cudaMemcpy(hostResults, devResults, totalThreads *
-      sizeof(unsigned int), cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaMemcpy(hostRVs, devResults, totalThreads *
+      sizeof(float), cudaMemcpyDeviceToHost));
 
-  // std::cout << "Generated numbers: " << std::endl;
-  // for (int i = 0; i < numElements; i++) {
-  //   std::cout << randomNumbers[i] << std::endl;
-  // }
-  // std::cout << "first number" << randomNumbers[0] << std::endl;
-  std::cout << "Mean: " << mu << std::endl;
-  std::cout << "Stdev: " << sigma << std::endl;
-  std::cout << "Number of elements: " << numElements << std::endl;
-
-  /* Show result */
-  unsigned int total;
-  int i;
-  total = 0;
-  for(i = 0; i < totalThreads; i++) {
-      total += hostResults[i];
+  unsigned int count = 0;
+  unsigned int withinOneSD = 0;
+  for (int i = 0; i < numElements; i++) {
+    std::cout << hostRVs[i] << std::endl;
+    if (hostRVs != 0)
+      count++;
+    if (hostRVs[i] > -1.0 && hostRVs[i] < 1.0) {
+      withinOneSD++;
+    }
   }
-  printf("Fraction of normals within 1 standard deviation was %10.13f\n",
-      (float)total / (totalThreads * numElements * 50.0f));
- 
+
+  std::cout << "RVs generated: " << count << std::endl;
+  std::cout << "Within one SD: " << (float)withinOneSD / count << std::endl;
+
+  /* Cleanup */
   CUDA_CALL(cudaFree(devStates));
   CUDA_CALL(cudaFree(devResults));
-  free(hostResults);
+  free(hostRVs);
 
   return 0;
 }
