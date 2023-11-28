@@ -1,7 +1,11 @@
 #include <gtest/gtest.h>
+#include <cuda_runtime.h>
+
+#include "../inc/add.h"
+
 
 /*
-This is the chatGPT solution, in principle it should be trigger with
+This is the chatGPT solution, in principle it should be triggered with
 nvcc -o test_executable test_file.cu -lgtest -lgtest_main -pthread
 but `-pthread` is not supported by nvcc. If one removes that bit, one hits
 a fatal error gtest/gtest.h: No such file or directory. I installed gtestlib-dev
@@ -9,16 +13,6 @@ that seemed to solve the issue.
 
 https://chat.openai.com/c/2bd8791e-753c-441b-9673-61a860643ddd
 */
-
-// Include the CUDA function definition here
-__global__
-void add(int n, float *x, float *y)
-{
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
-    int stride = blockDim.x * gridDim.x;
-    for (int i = index; i < n; i += stride)
-        y[i] = x[i] + y[i];
-}
 
 // Test fixture class
 class CUDATest : public ::testing::Test {
@@ -58,6 +52,10 @@ TEST_F(CUDATest, AddFunctionTest) {
     for (int i = 0; i < arraySize; ++i) {
         EXPECT_EQ(y[i], 3.0f);
     }
+
+    // Free memory
+    cudaFree(x);
+    cudaFree(y);
 }
 
 // Add more test cases as needed

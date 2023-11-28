@@ -10,4 +10,4 @@ It worked great for `tests/bazel/sample_test.cc`
 However, it won't work with CUDA code, so I tried the solution in `rules_cuda` [repository](https://github.com/bazel-contrib/rules_cuda) which is located in the `basic` directory. I didn't manage to get it working, though.
 
 **chatGPT Approach:**
-I asked chatGPT how to write a CUDA test and it gave me what is now in `tests/chatGPT/test_file.cu` that worked out of the box.
+I asked chatGPT how to write a CUDA test and it gave me what is now in `simple-approach/test_file.cu` that worked out of the box.
