@@ -12,6 +12,10 @@ a fatal error gtest/gtest.h: No such file or directory. I installed gtestlib-dev
 that seemed to solve the issue.
 
 https://chat.openai.com/c/2bd8791e-753c-441b-9673-61a860643ddd
+
+How to run this test:
+make all
+./bin/test_file
 */
 
 // Test fixture class
