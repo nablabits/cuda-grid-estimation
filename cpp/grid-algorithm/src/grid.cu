@@ -20,9 +20,6 @@ https://docs.nvidia.com/cuda/curand/group__DEVICE.html
 https://chat.openai.com/c/ba212caf-491f-4dfd-ac4f-ce2132672561
 
 TODO: Move them to a note on obsidian once we are done along with the learnings
-TODO: I will keep working in the test-sandbox branch to have at hand the 
-findings in `simple-approach` & `tests`. Once I have some test working for this
-I can move back to feature/grid-algorithm
 */
 
 
@@ -38,7 +35,6 @@ int main(void)
 
 
   /* MEMORY ALLOCATION */
-  // TODO: Find out the way to write some tests
   // TODO: change this to cudaMallocManaged once is working
 
   /* Allocate space for results on host */

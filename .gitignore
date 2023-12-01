@@ -9,12 +9,5 @@
 .swp
 tags
 
-# bazel
-bazel-bin
-bazel-cpp
-bazel-out
-bazel-testlogs
-bazel-tests
-
 # Generated bins
 bin/
