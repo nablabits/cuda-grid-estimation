@@ -1,5 +1,4 @@
 #include <iostream>
-#include <math.h>  // C std library
 #include <curand.h>
 #include <curand_kernel.h>
 
@@ -32,18 +31,12 @@ int main(void)
   curandState *devStates;
   float *devResults;
 
-
   /* MEMORY ALLOCATION */
-  /* Allocate space for prng states on device */
+  /* Allocate space for prng states */
   CUDA_CALL(cudaMallocManaged(&devStates, numElements *sizeof(curandState)));
 
-  /* Allocate space for results on device */
+  /* Allocate space for results */
   CUDA_CALL(cudaMallocManaged(&devResults, numElements * sizeof(float)));
-
-  /* Set results to 0 */
-  // CUDA_CALL(
-  //   cudaMemset(devResults, 0, numElements * sizeof(float))
-  // );
 
   setup_kernel<<<blockCount, threadsPerBlock>>>(devStates);
 
@@ -53,20 +46,11 @@ int main(void)
 
   cudaDeviceSynchronize();
 
-
-  unsigned int count = 0;
-  unsigned int withinOneSD = 0;
-  for (int i = 0; i < numElements; i++) {
-    std::cout << devResults[i] << std::endl;
-    if (devResults != 0)
-      count++;
-    if (devResults[i] > -1.0 && devResults[i] < 1.0) {
-      withinOneSD++;
-    }
+  // Due to seed, the first element should be -0.715557, let's check how close
+  // we are from it
+  if (devResults[0] + 0.715557f > 0.00001f) {
+    std::cout << "Oh noh! " << devResults[0] << std::endl;
   }
-
-  std::cout << "RVs generated: " << count << std::endl;
-  std::cout << "Within one SD: " << (float)withinOneSD / count << std::endl;
 
   /* Cleanup */
   CUDA_CALL(cudaFree(devStates));
