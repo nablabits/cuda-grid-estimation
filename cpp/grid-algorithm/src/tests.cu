@@ -5,6 +5,14 @@
 
 #include "../inc/normal_kernel.h"
 
+/*
+How to run this test suite:
+
+cd cpp/grid-algorithm
+make all
+./bin/tests
+*/
+
 
 class CUDATest : public ::testing::Test {
 protected:
@@ -21,7 +29,7 @@ protected:
 };
 
 // Test case for the CUDA function
-TEST_F(CUDATest, AddFunctionTest) {
+TEST_F(CUDATest, GenerateRandomVariates) {
     unsigned int numElements = 3;
     curandState *devStates;
     float *devResults;

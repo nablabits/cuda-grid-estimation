@@ -27,32 +27,23 @@ int main(void)
 {
   const unsigned int threadsPerBlock = 64;
   const unsigned int blockCount = 64;
-  const unsigned int totalThreads = threadsPerBlock * blockCount;  // 4096
 
   unsigned int numElements = 50;
   curandState *devStates;
-  float *devResults, *hostRVs;
+  float *devResults;
 
 
   /* MEMORY ALLOCATION */
-  // TODO: change this to cudaMallocManaged once is working
-
-  /* Allocate space for results on host */
-  hostRVs = (float *)calloc(totalThreads, sizeof(float));
-
   /* Allocate space for prng states on device */
-  CUDA_CALL(
-    cudaMalloc(&devStates, totalThreads *sizeof(curandState))
-  );
+  CUDA_CALL(cudaMallocManaged(&devStates, numElements *sizeof(curandState)));
 
   /* Allocate space for results on device */
-  CUDA_CALL(cudaMalloc(&devResults, totalThreads *
-            sizeof(float)));
-
+  CUDA_CALL(cudaMallocManaged(&devResults, numElements * sizeof(float)));
 
   /* Set results to 0 */
-  CUDA_CALL(cudaMemset(devResults, 0, totalThreads *
-            sizeof(float)));
+  // CUDA_CALL(
+  //   cudaMemset(devResults, 0, numElements * sizeof(float))
+  // );
 
   setup_kernel<<<blockCount, threadsPerBlock>>>(devStates);
 
@@ -62,17 +53,14 @@ int main(void)
 
   cudaDeviceSynchronize();
 
-  /* Copy device memory to host */
-  CUDA_CALL(cudaMemcpy(hostRVs, devResults, totalThreads *
-      sizeof(float), cudaMemcpyDeviceToHost));
 
   unsigned int count = 0;
   unsigned int withinOneSD = 0;
   for (int i = 0; i < numElements; i++) {
-    std::cout << hostRVs[i] << std::endl;
-    if (hostRVs != 0)
+    std::cout << devResults[i] << std::endl;
+    if (devResults != 0)
       count++;
-    if (hostRVs[i] > -1.0 && hostRVs[i] < 1.0) {
+    if (devResults[i] > -1.0 && devResults[i] < 1.0) {
       withinOneSD++;
     }
   }
@@ -83,7 +71,6 @@ int main(void)
   /* Cleanup */
   CUDA_CALL(cudaFree(devStates));
   CUDA_CALL(cudaFree(devResults));
-  free(hostRVs);
 
   return 0;
 }
