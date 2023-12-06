@@ -33,13 +33,17 @@ TEST_F(CUDATest, GenerateRandomVariates) {
     unsigned int numElements = 3;
     curandState *devStates;
     float *devResults;
+    float mu = 0.0f;
+    float sigma = 1.0f;
 
     // Allocate Memory
     cudaMallocManaged(&devStates, numElements * sizeof(curandState));
     cudaMallocManaged(&devResults, numElements * sizeof(float));
 
     // Call the CUDA function
-    generate_normal_kernel<<<1, 1>>>(devStates, numElements, devResults);
+    generate_normal_kernel<<<1, 1>>>(
+        devStates, numElements, mu, sigma, devResults
+    );
 
     // Copy the result back to the host
     cudaDeviceSynchronize();

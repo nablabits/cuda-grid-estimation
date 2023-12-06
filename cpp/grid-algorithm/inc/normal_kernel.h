@@ -17,6 +17,8 @@ __global__ void setup_kernel(curandState *state)
 
 __global__ void generate_normal_kernel(curandState *state,
                                 unsigned int n,
+                                float mu,
+                                float sigma,
                                 float *result)
 {
     /* 
@@ -26,9 +28,6 @@ __global__ void generate_normal_kernel(curandState *state,
     int index = threadIdx.x + blockIdx.x * blockDim.x;
     int stride = blockDim.x * gridDim.x;
 
-    // TODO: these should be args for the function
-    float mu = 0.0f;
-    float sigma = 1.0f;
     float rv;
     
     /* Generate pseudo-random normals */

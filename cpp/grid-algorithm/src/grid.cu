@@ -39,6 +39,12 @@ int main(void)
   const unsigned int blockCount = 64;
   const unsigned int totalThreads = threadsPerBlock * blockCount;  // 4096
 
+  /* These are the hidden folks we want to estimate*/
+  const float mu = 20.0f;
+  const float sigma = 5.0f;
+
+  /* Generate the random variates */
+  /********************************/
   unsigned int numElements = 50;
   curandState *devStates;
   float *devResults;
@@ -53,14 +59,14 @@ int main(void)
   setup_kernel<<<blockCount, threadsPerBlock>>>(devStates);
 
   generate_normal_kernel<<<blockCount, threadsPerBlock>>>(
-    devStates, numElements, devResults
+    devStates, numElements, mu, sigma, devResults
   );
 
   cudaDeviceSynchronize();
 
-  // Due to seed, the first element should be -0.715557, let's check how close
+  // Due to seed, the first element should be 16.4222, let's check how close
   // we are from it
-  if (devResults[0] + 0.715557f > 0.00001f) {
+  if (devResults[0] - 16.4222f > 0.0001f) {
     std::cout << "Oh noh! " << devResults[0] << std::endl;
   }
 
