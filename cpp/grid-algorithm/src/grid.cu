@@ -19,6 +19,17 @@ https://docs.nvidia.com/cuda/curand/group__DEVICE.html
 https://chat.openai.com/c/ba212caf-491f-4dfd-ac4f-ce2132672561
 
 TODO: Move them to a note on obsidian once we are done along with the learnings
+
+How to run this:
+
+cd cpp/grid-algorithm
+make all
+
+# always check that we are not doing something spooky under the hood
+compute-sanintizer ./bin/grid
+
+# Run the binary
+./bin/grid
 */
 
 
@@ -26,6 +37,7 @@ int main(void)
 {
   const unsigned int threadsPerBlock = 64;
   const unsigned int blockCount = 64;
+  const unsigned int totalThreads = threadsPerBlock * blockCount;  // 4096
 
   unsigned int numElements = 50;
   curandState *devStates;
@@ -33,10 +45,10 @@ int main(void)
 
   /* MEMORY ALLOCATION */
   /* Allocate space for prng states */
-  CUDA_CALL(cudaMallocManaged(&devStates, numElements *sizeof(curandState)));
+  CUDA_CALL(cudaMallocManaged(&devStates, totalThreads *sizeof(curandState)));
 
   /* Allocate space for results */
-  CUDA_CALL(cudaMallocManaged(&devResults, numElements * sizeof(float)));
+  CUDA_CALL(cudaMallocManaged(&devResults, totalThreads * sizeof(float)));
 
   setup_kernel<<<blockCount, threadsPerBlock>>>(devStates);
 
