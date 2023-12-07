@@ -41,7 +41,7 @@ int main(void)
 
   /* These are the hidden folks we want to estimate*/
   const float mu = 20.0f;
-  const float sigma = 5.0f;  // TODO: set this to 2.0f
+  const float sigma = 2.0f;
 
   /* Generate the random variates */
   /********************************/
@@ -64,9 +64,9 @@ int main(void)
 
   cudaDeviceSynchronize();
 
-  // Due to seed, the first element should be 16.4222, let's check how close
+  // Due to seed, the first element should be 18.5689, let's check how close
   // we are from it
-  if (devResults[0] - 16.4222f > 0.0001f) {
+  if (devResults[0] - 18.5689f > 0.0001f) {
     std::cout << "Oh noh! " << devResults[0] << std::endl;
     return 1;
   }
@@ -79,42 +79,44 @@ int main(void)
   are [1, 2, 3] & [4, 5 ,6], then our outer product will be:
 
   [1, 2, 3, 1, 2, 3, 1, 2, 3]
-  [4, 4, 4, 5, 5, 5, 6, 6, 6] 
-  */
+  [4, 4, 4, 5, 5, 5, 6, 6, 6]
 
-  float *vectorX;
-  float *vectorY;
-  const int size = 3;
-  const int start = 1;
-  const int end = 3;
+  TODO: we treat the vectors and the grids as separate objects. A possible
+  improvement here could be to treat them as a single multidimensional array
+  */
+  float *vectorMu;
+  float *vectorSigma;
+  const int size = 101;
+  const int gridSize = size * size;
+  const float startMu = 18.0f;
+  const float endMu = 22.0f;
+  const float startSigma = 1.0f;
+  const float endSigma = 3.0f;
 
   float *gridX;
   float *gridY;
 
-  // TODO: fix the size of these arrays to avoid using the big totalThreads
-  CUDA_CALL(cudaMallocManaged(&vectorX, totalThreads * sizeof(float)));
-  CUDA_CALL(cudaMallocManaged(&vectorY, totalThreads * sizeof(float)));
-  CUDA_CALL(cudaMallocManaged(&gridX, totalThreads * sizeof(float)));
-  CUDA_CALL(cudaMallocManaged(&gridY, totalThreads * sizeof(float)));
+  CUDA_CALL(cudaMallocManaged(&vectorMu, size * sizeof(float)));
+  CUDA_CALL(cudaMallocManaged(&vectorSigma, size * sizeof(float)));
+  CUDA_CALL(cudaMallocManaged(&gridX, gridSize * sizeof(float)));
+  CUDA_CALL(cudaMallocManaged(&gridY, gridSize * sizeof(float)));
 
-  linspaceCuda(vectorX, size, start, end);
-  linspaceCuda(vectorY, size, start, end);
+  linspaceCuda(vectorMu, size, startMu, endMu);
+  linspaceCuda(vectorSigma, size, startSigma, endSigma);
 
-  createGrid(vectorX, vectorY, gridX, gridY, size);
+  createGrid(vectorMu, vectorSigma, gridX, gridY, size);
 
-  for (int i = 0; i < size * size; ++i) {
-      std::cout << gridX[i] << " ";
+  // A couple of sanity checks
+  if (gridX[151] != 20.0f) {
+    std::cout << "Oh noh! " << gridX[151] << std::endl;
+    return 1;
   }
-  std::cout << std::endl;
 
-  for (int i = 0; i < size * size; ++i) {
-      std::cout << gridY[i] << " ";
+  // 101 vectorMu * 1/2 vectorSigma; 5050 index
+  if (gridY[101 * 50] != 2.0f) {
+    std::cout << "Oh noh! " << gridY[5050] << std::endl;
+    return 1;
   }
-  
-
-  cudaFree(gridX);
-  cudaFree(gridY);
-
 
   /* It may be possible to use thrust::reduce to take the product over axis*/
 
@@ -122,6 +124,10 @@ int main(void)
   /* Cleanup */
   CUDA_CALL(cudaFree(devStates));
   CUDA_CALL(cudaFree(devResults));
+  CUDA_CALL(cudaFree(vectorMu));
+  CUDA_CALL(cudaFree(vectorSigma));
+  CUDA_CALL(cudaFree(gridX));
+  CUDA_CALL(cudaFree(gridY));
 
   return 0;
 }
