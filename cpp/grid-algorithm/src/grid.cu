@@ -1,8 +1,8 @@
 #include <iostream>
-#include <curand.h>
 #include <curand_kernel.h>
 
 #include "../inc/normal_kernel.h"
+#include "../inc/arrays.h"
 
 
 // this is a macro
@@ -68,7 +68,55 @@ int main(void)
   // we are from it
   if (devResults[0] - 16.4222f > 0.0001f) {
     std::cout << "Oh noh! " << devResults[0] << std::endl;
+    return 1;
   }
+
+  /* 
+  Create the grids 
+  ****************
+
+  Let's start small with a 3x3 grid, this will mean two arrays of size 9
+  in such a way that we can get the outer product of the two 3d-vectors. This
+  is, if our 3d vectors are [1, 2, 3] & [4, 5 ,6], then our outer product will
+  be:
+
+  [1, 2, 3, 1, 2, 3, 1, 2, 3]
+  [4, 4, 4, 5, 5, 5, 6, 6, 6] 
+  */
+
+  // TODO: next up, create the linspace equivalent for the arrays and move all
+  // to different functions in a separate file
+
+  // we will need the vectors along with the grids for the whole life of the
+  // program. Maybe worth initiating them in the beginning of main()
+  int vectorX[3] = {1, 2, 3};
+  int vectorY[3] = {4, 5, 6};
+  const int size = 3;
+
+  int *gridX;
+  int *gridY;
+
+  CUDA_CALL(cudaMallocManaged(&gridX, totalThreads * sizeof(int)));
+  CUDA_CALL(cudaMallocManaged(&gridY, totalThreads * sizeof(int)));
+
+  createGrid(vectorX, vectorY, gridX, gridY, size);
+
+  for (int i = 0; i < size * size; ++i) {
+      std::cout << gridX[i] << " ";
+  }
+  std::cout << std::endl;
+
+  for (int i = 0; i < size * size; ++i) {
+      std::cout << gridY[i] << " ";
+  }
+  
+
+  cudaFree(gridX);
+  cudaFree(gridY);
+
+
+  /* It may be possible to use thrust::reduce to take the product over axis*/
+
 
   /* Cleanup */
   CUDA_CALL(cudaFree(devStates));
