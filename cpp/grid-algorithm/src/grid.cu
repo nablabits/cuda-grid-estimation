@@ -41,7 +41,7 @@ int main(void)
 
   /* These are the hidden folks we want to estimate*/
   const float mu = 20.0f;
-  const float sigma = 5.0f;
+  const float sigma = 5.0f;  // TODO: set this to 2.0f
 
   /* Generate the random variates */
   /********************************/
@@ -74,30 +74,31 @@ int main(void)
   /* 
   Create the grids 
   ****************
-
-  Let's start small with a 3x3 grid, this will mean two arrays of size 9
-  in such a way that we can get the outer product of the two 3d-vectors. This
-  is, if our 3d vectors are [1, 2, 3] & [4, 5 ,6], then our outer product will
-  be:
+  We need a grid with the outer product of two vectors that will represent the
+  combinations of the parameters we want to estimate. This is, if our vectors 
+  are [1, 2, 3] & [4, 5 ,6], then our outer product will be:
 
   [1, 2, 3, 1, 2, 3, 1, 2, 3]
   [4, 4, 4, 5, 5, 5, 6, 6, 6] 
   */
 
-  // TODO: next up, create the linspace equivalent for the arrays and move all
-  // to different functions in a separate file
-
-  // we will need the vectors along with the grids for the whole life of the
-  // program. Maybe worth initiating them in the beginning of main()
-  int vectorX[3] = {1, 2, 3};
-  int vectorY[3] = {4, 5, 6};
+  float *vectorX;
+  float *vectorY;
   const int size = 3;
+  const int start = 1;
+  const int end = 3;
 
-  int *gridX;
-  int *gridY;
+  float *gridX;
+  float *gridY;
 
-  CUDA_CALL(cudaMallocManaged(&gridX, totalThreads * sizeof(int)));
-  CUDA_CALL(cudaMallocManaged(&gridY, totalThreads * sizeof(int)));
+  // TODO: fix the size of these arrays to avoid using the big totalThreads
+  CUDA_CALL(cudaMallocManaged(&vectorX, totalThreads * sizeof(float)));
+  CUDA_CALL(cudaMallocManaged(&vectorY, totalThreads * sizeof(float)));
+  CUDA_CALL(cudaMallocManaged(&gridX, totalThreads * sizeof(float)));
+  CUDA_CALL(cudaMallocManaged(&gridY, totalThreads * sizeof(float)));
+
+  linspaceCuda(vectorX, size, start, end);
+  linspaceCuda(vectorY, size, start, end);
 
   createGrid(vectorX, vectorY, gridX, gridY, size);
 

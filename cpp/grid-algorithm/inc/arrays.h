@@ -5,7 +5,7 @@
 #define ARRAYS_H
 
 // TODO: this should be a device function
-void createGrid(int *vectorX, int *vectorY, int *gridX, int *gridY, int size) {
+void createGrid(float *vectorX, float *vectorY, float *gridX, float *gridY, int size) {
   int pos = 0;
   for (int i = 0; i < size; i++) {
     for (int ii = 0; ii < size; ii++) {
@@ -16,7 +16,7 @@ void createGrid(int *vectorX, int *vectorY, int *gridX, int *gridY, int size) {
   }
 }
 
-__global__ void linspaceKernel(float *array, int n, float start, float end) {
+__global__ void linspaceKernel(float *array, int size, float start, float end) {
   /*
   Create a linearly spaced array on the device.
 
@@ -26,16 +26,16 @@ __global__ void linspaceKernel(float *array, int n, float start, float end) {
   end: end of range
   */
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx < n) {
-        array[idx] = start + idx * (end - start) / (n - 1);
+    if (idx < size) {
+        array[idx] = start + idx * (end - start) / (size - 1);
     }
 }
 
-void linspaceCuda(float* array, int n, float start, float end) {
+void linspaceCuda(float* array, int size, float start, float end) {
     int blockSize = 256;
-    int gridSize = (n + blockSize - 1) / blockSize;
+    int gridSize = (size + blockSize - 1) / blockSize;
 
-    linspaceKernel<<<gridSize, blockSize>>>(array, n, start, end);
+    linspaceKernel<<<gridSize, blockSize>>>(array, size, start, end);
     cudaDeviceSynchronize();
 }
 

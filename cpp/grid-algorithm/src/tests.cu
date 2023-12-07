@@ -4,6 +4,7 @@
 #include <curand_kernel.h>
 
 #include "../inc/normal_kernel.h"
+#include "../inc/arrays.h"
 
 /*
 How to run this test suite:
@@ -54,6 +55,42 @@ TEST_F(CUDATest, GenerateRandomVariates) {
     // Free memory
     cudaFree(devStates);
     cudaFree(devResults);
+}
+
+
+TEST_F(CUDATest, GenerateGrids) {
+  // SetUp
+  const int size = 2;
+  const int start = 1;
+  const int end = 2;
+
+  float *vectorX;
+  float *vectorY;
+  float *gridX;
+  float *gridY;
+
+  cudaMallocManaged(&vectorX, size * sizeof(float));
+  cudaMallocManaged(&vectorY, size * sizeof(float));
+  cudaMallocManaged(&gridX, size * size * sizeof(float));
+  cudaMallocManaged(&gridY, size * size * sizeof(float));
+
+  // Act
+  linspaceCuda(vectorX, size, start, end);
+  linspaceCuda(vectorY, size, start, end);
+
+  createGrid(vectorX, vectorY, gridX, gridY, size);
+
+  // Assert
+  float expectedGridX[4] = {1.0f, 2.0f, 1.0f, 2.0f};
+  float expectedGridY[4] = {1.0f, 1.0f, 2.0f, 2.0f};
+  ASSERT_TRUE(std::equal(gridX, gridX + size * size, expectedGridX));
+  ASSERT_TRUE(std::equal(gridY, gridY + size * size, expectedGridY));
+
+  // TearDown
+  cudaFree(vectorX);
+  cudaFree(vectorY);
+  cudaFree(gridX);
+  cudaFree(gridY);
 }
 
 int main(int argc, char **argv) {
