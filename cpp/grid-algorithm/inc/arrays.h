@@ -30,82 +30,19 @@ void linspaceCuda(float* array, int size, float start, float end) {
 
 
 __global__ void createGridKernel(
-  int *vectorX, int *vectorY, int *gridX, int *gridY, int size
+  float *vectorX, float *vectorY, float *gridX, float *gridY, int size
   )
 {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   int ii = blockIdx.y * blockDim.y + threadIdx.y;
 
-  // printf("i: %d, ii: %d\n", i, ii);
-  // int vx[3] = {0, 1, 2};
-  // int vy[3] = {0, 1, 2};
-  // for (int h = 0; h < 9; h++) {
-  //   printf("vector at %d: %d\n", h, vectorX[h]);
-  // }
-
-
-  int pos = i * 3 + ii;
-  if (i < 3 && ii < 3) {
+  int pos = i * size + ii;
+  if (i < size && ii < size) {
     gridX[pos] = vectorX[i];
     gridY[pos] = vectorY[ii];
   }
 }
 
-
-void simpleCreateGridCuda()
-{
-  int vecX_[3] = {0, 1, 2};
-  int vecY_[3] = {0, 1, 2};
-
-  int *vecX, *vecY;
-  cudaMallocManaged(&vecX, 3 * sizeof(int));
-  cudaMallocManaged(&vecY, 3 * sizeof(int));
-
-  for (int i = 0; i < 3; i++) {
-    vecX[i] = vecX_[i];
-    vecY[i] = vecY_[i];
-  }
-
-
-
-  int size = 9;
-  int *gX, *gY;
-  cudaMallocManaged(&gX, size * sizeof(int));
-  cudaMallocManaged(&gY, size * sizeof(int));
-
-
-  dim3 threadsPerBlock(9, 9);  // You can adjust the block size as needed
-  dim3 numBlocks((size + threadsPerBlock.x - 1) / threadsPerBlock.x,
-                 (size + threadsPerBlock.y - 1) / threadsPerBlock.y);
-
-  printf("threadsPerBlock.x: %d, threadsPerBlock.y: %d\n", threadsPerBlock.x, threadsPerBlock.y);
-  printf("numBlocks.x: %d, numBlocks.y: %d\n", numBlocks.x, numBlocks.y);
-
-  printf("%d\n", vecX[2]);
-
-  createGridKernel<<<numBlocks, threadsPerBlock>>>(vecX, vecY, gX, gY, size);
-
-  cudaDeviceSynchronize();
-
-  for (int i = 0; i < 9; i++) {
-    std::cout << gX[i] << ", ";
-  }
-  std::cout << std::endl;
-  for (int i = 0; i < 9; i++) {
-    std::cout << gY[i] << ", ";
-  }
-  std::cout << std::endl;
-
-  cudaFree(gX);
-  cudaFree(gY);
-}
-
-
-
-
-
-
-// TODO: this should be a device function
 void createGrid(
   float *vectorX, float *vectorY, float *gridX, float *gridY, int size,
   float startMu, float endMu, float startSigma, float endSigma
@@ -113,14 +50,15 @@ void createGrid(
 {
   linspaceCuda(vectorX, size, startMu, endMu);
   linspaceCuda(vectorY, size, startSigma, endSigma);
-  int pos = 0;
-  for (int i = 0; i < size; i++) {
-    for (int ii = 0; ii < size; ii++) {
-        gridX[pos] = vectorX[ii];
-        gridY[pos] = vectorY[i];
-        pos++;
-    }
-  }
+
+  dim3 threadsPerBlock(16, 16);  // You can adjust the block size as needed
+  dim3 numBlocks_((101 + threadsPerBlock.x - 1) / threadsPerBlock.x,
+                 (101 + threadsPerBlock.y - 1) / threadsPerBlock.y);
+
+  createGridKernel<<<numBlocks_, threadsPerBlock>>>(vectorX, vectorY, gridX, gridY, 101);
+
+  cudaDeviceSynchronize();
+
 }
 
 #endif

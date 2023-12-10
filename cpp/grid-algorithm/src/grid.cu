@@ -107,19 +107,18 @@ int main(void)
   );
 
   // A couple of sanity checks
-  if (gridX[151] != 20.0f) {
-    std::cout << "Oh noh! " << gridX[151] << std::endl;
+  if (gridX[5050] != 20.0f) {
+    std::cout << "Oh noh! " << gridX[5050] << std::endl;
     return 1;
   }
 
   // 101 vectorMu * 1/2 vectorSigma; 5050 index
-  if (gridY[101 * 50] != 2.0f) {
-    std::cout << "Oh noh! " << gridY[5050] << std::endl;
+  if (gridY[151] != 2.0f) {
+    std::cout << "Oh noh! " << gridY[151] << std::endl;
     return 1;
   }
 
   /* It may be possible to use thrust::reduce to take the product over axis*/
-  simpleCreateGridCuda();
 
 
   /* Cleanup */
