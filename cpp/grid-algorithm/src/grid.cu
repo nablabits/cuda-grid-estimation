@@ -71,11 +71,11 @@ int main(void)
     return 1;
   }
 
-  /* 
-  Create the grids 
+  /*
+  Create the grids
   ****************
   We need a grid with the outer product of two vectors that will represent the
-  combinations of the parameters we want to estimate. This is, if our vectors 
+  combinations of the parameters we want to estimate. This is, if our vectors
   are [1, 2, 3] & [4, 5 ,6], then our outer product will be:
 
   [1, 2, 3, 1, 2, 3, 1, 2, 3]
@@ -101,10 +101,10 @@ int main(void)
   CUDA_CALL(cudaMallocManaged(&gridX, gridSize * sizeof(float)));
   CUDA_CALL(cudaMallocManaged(&gridY, gridSize * sizeof(float)));
 
-  linspaceCuda(vectorMu, size, startMu, endMu);
-  linspaceCuda(vectorSigma, size, startSigma, endSigma);
-
-  createGrid(vectorMu, vectorSigma, gridX, gridY, size);
+  createGrid(
+    vectorMu, vectorSigma, gridX, gridY, size,
+    startMu, endMu, startSigma, endSigma
+  );
 
   // A couple of sanity checks
   if (gridX[151] != 20.0f) {
@@ -119,6 +119,7 @@ int main(void)
   }
 
   /* It may be possible to use thrust::reduce to take the product over axis*/
+  simpleCreateGridCuda();
 
 
   /* Cleanup */
