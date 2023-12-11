@@ -47,7 +47,7 @@ int main(void)
   /********************************/
   unsigned int numElements = 50;
   curandState *devStates;
-  float *devResults;
+  float *devResults;  // TODO: rename this to Observations
 
   /* MEMORY ALLOCATION */
   /* Allocate space for prng states */
@@ -56,6 +56,10 @@ int main(void)
   /* Allocate space for results */
   CUDA_CALL(cudaMallocManaged(&devResults, totalThreads * sizeof(float)));
 
+  // TODO: this may well be a normalCuda like linspaceCuda where we just setup
+  // the blocks and the threadsPerBlock, generate, sync & test the results.
+  // We can also define the devStates (that we can rename as just states) there
+  // and get rid of them once we have the observations.
   setup_kernel<<<blockCount, threadsPerBlock>>>(devStates);
 
   generate_normal_kernel<<<blockCount, threadsPerBlock>>>(
@@ -74,15 +78,6 @@ int main(void)
   /*
   Create the grids
   ****************
-  We need a grid with the outer product of two vectors that will represent the
-  combinations of the parameters we want to estimate. This is, if our vectors
-  are [1, 2, 3] & [4, 5 ,6], then our outer product will be:
-
-  [1, 2, 3, 1, 2, 3, 1, 2, 3]
-  [4, 4, 4, 5, 5, 5, 6, 6, 6]
-
-  TODO: we treat the vectors and the grids as separate objects. A possible
-  improvement here could be to treat them as a single multidimensional array
   */
   float *vectorMu;
   float *vectorSigma;
@@ -101,10 +96,9 @@ int main(void)
   CUDA_CALL(cudaMallocManaged(&gridX, gridSize * sizeof(float)));
   CUDA_CALL(cudaMallocManaged(&gridY, gridSize * sizeof(float)));
 
-  createGrid(
-    vectorMu, vectorSigma, gridX, gridY, size,
-    startMu, endMu, startSigma, endSigma
-  );
+  linspaceCuda(vectorMu, size, startMu, endMu);
+  linspaceCuda(vectorSigma, size, startSigma, endSigma);
+  createGridCuda(vectorMu, vectorSigma, gridX, gridY, size);
 
   // A couple of sanity checks
   if (gridX[5050] != 20.0f) {

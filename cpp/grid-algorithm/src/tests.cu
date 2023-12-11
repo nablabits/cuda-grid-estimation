@@ -58,11 +58,12 @@ TEST_F(CUDATest, GenerateRandomVariates) {
 }
 
 
+
 TEST_F(CUDATest, GenerateGrids) {
   // SetUp
   const int size = 2;
-  const int start = 1;
-  const int end = 2;
+  const float start = 1.0f;
+  const float end = 2.0f;
 
   float *vectorX;
   float *vectorY;
@@ -77,12 +78,12 @@ TEST_F(CUDATest, GenerateGrids) {
   // Act
   linspaceCuda(vectorX, size, start, end);
   linspaceCuda(vectorY, size, start, end);
-
-  createGrid(vectorX, vectorY, gridX, gridY, size);
+  createGridCuda(vectorX, vectorY, gridX, gridY, size);
 
   // Assert
-  float expectedGridX[4] = {1.0f, 2.0f, 1.0f, 2.0f};
-  float expectedGridY[4] = {1.0f, 1.0f, 2.0f, 2.0f};
+  float expectedGridX[4] = {1.0f, 1.0f, 2.0f, 2.0f};
+  float expectedGridY[4] = {1.0f, 2.0f, 1.0f, 2.0f};
+
   ASSERT_TRUE(std::equal(gridX, gridX + size * size, expectedGridX));
   ASSERT_TRUE(std::equal(gridY, gridY + size * size, expectedGridY));
 
