@@ -29,10 +29,10 @@ void linspaceCuda(float* array, int size, float start, float end) {
     start: start of range (included)
     end: end of range (included)
     */
-    int blockSize = 256;
-    int gridSize = (size + blockSize - 1) / blockSize;
+    int threadsPerBlock = 256;
+    int numBlocks = (size + threadsPerBlock - 1) / threadsPerBlock;
 
-    linspaceKernel<<<gridSize, blockSize>>>(array, size, start, end);
+    linspaceKernel<<<numBlocks, threadsPerBlock>>>(array, size, start, end);
     cudaDeviceSynchronize();
 }
 
@@ -88,10 +88,10 @@ void createGridCuda(
   */
 
   dim3 threadsPerBlock(16, 16);  // You can adjust the block size as needed
-  dim3 numBlocks_((size + threadsPerBlock.x - 1) / threadsPerBlock.x,
+  dim3 numBlocks((size + threadsPerBlock.x - 1) / threadsPerBlock.x,
                  (size + threadsPerBlock.y - 1) / threadsPerBlock.y);
 
-  createGridKernel<<<numBlocks_, threadsPerBlock>>>(
+  createGridKernel<<<numBlocks, threadsPerBlock>>>(
     vectorX, vectorY, gridX, gridY, size
   );
 

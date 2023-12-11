@@ -35,10 +35,6 @@ compute-sanintizer ./bin/grid
 
 int main(void)
 {
-  const unsigned int threadsPerBlock = 64;
-  const unsigned int blockCount = 64;
-  const unsigned int totalThreads = threadsPerBlock * blockCount;  // 4096
-
   /* These are the hidden folks we want to estimate*/
   const float mu = 20.0f;
   const float sigma = 2.0f;
@@ -46,32 +42,16 @@ int main(void)
   /* Generate the random variates */
   /********************************/
   unsigned int numElements = 50;
-  curandState *devStates;
-  float *devResults;  // TODO: rename this to Observations
-
-  /* MEMORY ALLOCATION */
-  /* Allocate space for prng states */
-  CUDA_CALL(cudaMallocManaged(&devStates, totalThreads *sizeof(curandState)));
-
+  float *observations;
   /* Allocate space for results */
-  CUDA_CALL(cudaMallocManaged(&devResults, totalThreads * sizeof(float)));
+  CUDA_CALL(cudaMallocManaged(&observations, numElements * sizeof(float)));
 
-  // TODO: this may well be a normalCuda like linspaceCuda where we just setup
-  // the blocks and the threadsPerBlock, generate, sync & test the results.
-  // We can also define the devStates (that we can rename as just states) there
-  // and get rid of them once we have the observations.
-  setup_kernel<<<blockCount, threadsPerBlock>>>(devStates);
-
-  generate_normal_kernel<<<blockCount, threadsPerBlock>>>(
-    devStates, numElements, mu, sigma, devResults
-  );
-
-  cudaDeviceSynchronize();
+  generateNormalCuda(numElements, mu, sigma, observations);
 
   // Due to seed, the first element should be 18.5689, let's check how close
   // we are from it
-  if (devResults[0] - 18.5689f > 0.0001f) {
-    std::cout << "Oh noh! " << devResults[0] << std::endl;
+  if (observations[0] - 18.5689f > 0.0001f) {
+    std::cout << "Oh noh! " << observations[0] << std::endl;
     return 1;
   }
 
@@ -116,8 +96,7 @@ int main(void)
 
 
   /* Cleanup */
-  CUDA_CALL(cudaFree(devStates));
-  CUDA_CALL(cudaFree(devResults));
+  CUDA_CALL(cudaFree(observations));
   CUDA_CALL(cudaFree(vectorMu));
   CUDA_CALL(cudaFree(vectorSigma));
   CUDA_CALL(cudaFree(gridX));
