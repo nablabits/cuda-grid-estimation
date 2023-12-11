@@ -41,12 +41,12 @@ int main(void)
 
   /* Generate the random variates */
   /********************************/
-  unsigned int numElements = 50;
+  const int rvs = 50;
   float *observations;
   /* Allocate space for results */
-  CUDA_CALL(cudaMallocManaged(&observations, numElements * sizeof(float)));
+  CUDA_CALL(cudaMallocManaged(&observations, rvs * sizeof(float)));
 
-  generateNormalCuda(numElements, mu, sigma, observations);
+  generateNormalCuda(rvs, mu, sigma, observations);
 
   // Due to seed, the first element should be 18.5689, let's check how close
   // we are from it
@@ -80,6 +80,7 @@ int main(void)
   linspaceCuda(vectorSigma, size, startSigma, endSigma);
   createGridCuda(vectorMu, vectorSigma, gridX, gridY, size);
 
+  // TODO: change these comments to the real values
   // A couple of sanity checks
   if (gridX[5050] != 20.0f) {
     std::cout << "Oh noh! " << gridX[5050] << std::endl;
@@ -92,8 +93,11 @@ int main(void)
     return 1;
   }
 
-  /* It may be possible to use thrust::reduce to take the product over axis*/
+  /*
+  Compute the Likelihood Function
+  */
 
+  simpleLikelihood();
 
   /* Cleanup */
   CUDA_CALL(cudaFree(observations));

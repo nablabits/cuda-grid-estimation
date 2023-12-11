@@ -4,6 +4,12 @@
 #ifndef ARRAYS_H
 #define ARRAYS_H
 
+void printArray(float *arr, int n=3) {
+  for (int i = 0; i < n; i++) {
+    std::cout << arr[i] << ", ";
+  }
+  std::cout << std::endl;
+}
 
 __global__ void linspaceKernel(float *array, int size, float start, float end) {
   /*
@@ -96,6 +102,44 @@ void createGridCuda(
   );
 
   cudaDeviceSynchronize();
+}
+
+float normalPdf(float x, float mu, float sigma) {
+  float result = 1.0f / (sigma * sqrt(2.0f * M_PI)) * exp(-0.5f * pow((x - mu) / sigma, 2.0f));
+  return result;
+}
+
+void simpleLikelihood() {
+  float observations = 20.5f;
+  int vecSize = 3;
+  int gridSize = vecSize * vecSize;
+
+  float *vecX, *vecY;
+  float *gridX, *gridY, *likes;
+  cudaMallocManaged(&vecX, vecSize * sizeof(float));
+  cudaMallocManaged(&vecY, vecSize * sizeof(float));
+  cudaMallocManaged(&gridX, gridSize * sizeof(float));
+  cudaMallocManaged(&gridY, gridSize * sizeof(float));
+  cudaMallocManaged(&likes, gridSize * sizeof(float));
+
+  linspaceCuda(vecX, 3, 19.0f, 21.0f);
+  linspaceCuda(vecY, 3, 1.0f, 3.0f);
+  createGridCuda(vecX, vecY, gridX, gridY, vecSize);
+
+  for (int i = 0; i < gridSize; i++) {
+    likes[i] = normalPdf(observations, gridX[i], gridY[i]);
+  }
+
+  printArray(gridX, gridSize);
+  printArray(gridY, gridSize);
+  printArray(likes, gridSize);
+
+  // Clean up
+  cudaFree(gridX);
+  cudaFree(gridY);
+  cudaFree(likes);
+  cudaFree(vecX);
+  cudaFree(vecY);
 }
 
 #endif
