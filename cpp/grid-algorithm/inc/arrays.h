@@ -104,13 +104,26 @@ void createGridCuda(
   cudaDeviceSynchronize();
 }
 
-float normalPdf(float x, float mu, float sigma) {
-  float result = 1.0f / (sigma * sqrt(2.0f * M_PI)) * exp(-0.5f * pow((x - mu) / sigma, 2.0f));
-  return result;
+__device__ float normalPdf(float x, float mu, float sigma) {
+  return exp(-0.5f * pow((x - mu) / sigma, 2.0f)) / (sigma * sqrt(2.0f * M_PI));
+}
+
+__global__ void normalPdfKernel(float *likes, float *gridX, float *gridY, int gridSize) {
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < gridSize) {
+    float x = 20.5f;
+    float sigma = gridY[i];
+    float mu = gridX[i];
+    likes[i] = normalPdf(x, mu, sigma);
+  }
 }
 
 void simpleLikelihood() {
-  float observations = 20.5f;
+  /*
+  Next steps:
+  - Extend the function to take a vector of observations
+  */
+  // float observations = 20.5f;
   int vecSize = 3;
   int gridSize = vecSize * vecSize;
 
@@ -126,9 +139,10 @@ void simpleLikelihood() {
   linspaceCuda(vecY, 3, 1.0f, 3.0f);
   createGridCuda(vecX, vecY, gridX, gridY, vecSize);
 
-  for (int i = 0; i < gridSize; i++) {
-    likes[i] = normalPdf(observations, gridX[i], gridY[i]);
-  }
+  dim3 threadsPerBlock(16, 16);  // You can adjust the block size as needed
+  dim3 numBlocks((gridSize + threadsPerBlock.x - 1) / threadsPerBlock.x,
+                 (gridSize + threadsPerBlock.y - 1) / threadsPerBlock.y);
+  normalPdfKernel<<<numBlocks, threadsPerBlock>>>(likes, gridX, gridY, gridSize);
 
   printArray(gridX, gridSize);
   printArray(gridY, gridSize);
