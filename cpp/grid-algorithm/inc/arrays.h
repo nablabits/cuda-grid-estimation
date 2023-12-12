@@ -119,15 +119,15 @@ __global__ void normalPdfKernel(float *likes, float *gridX, float *gridY, int gr
 // real values.
 __global__ void create3dGridKernel(float *vecX, float *vecY, float *vecZ,
                                    float *gridX, float *gridY, float *gridZ,
-                                   int vecSize)
+                                   int vecXYSize, int vecZSize)
 {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   int ii = blockIdx.y * blockDim.y + threadIdx.y;
   int iii = blockIdx.z * blockDim.z + threadIdx.z;
 
-  int idx = i * vecSize * vecSize + ii * vecSize + iii;
+  int idx = i * vecXYSize * vecZSize + ii * vecZSize + iii;
 
-  if (i < vecSize && ii < vecSize && iii < vecSize) {
+  if (i < vecXYSize && ii < vecXYSize && iii < vecZSize) {
     gridX[idx] = vecX[i];
     gridY[idx] = vecY[ii];
     gridZ[idx] = vecZ[iii];
@@ -135,29 +135,30 @@ __global__ void create3dGridKernel(float *vecX, float *vecY, float *vecZ,
 }
 
 void create3dGrid() {
-  int vecSize = 3;
-  int gridSize = vecSize * vecSize * vecSize;
+  int paramSize = 3;
+  int obsSize = 2;
+  int gridSize = paramSize * paramSize * obsSize;
 
   float *vecX, *vecY, *vecZ;
   float *gridX, *gridY, *gridZ;
-  cudaMallocManaged(&vecX, vecSize * sizeof(float));
-  cudaMallocManaged(&vecY, vecSize * sizeof(float));
-  cudaMallocManaged(&vecZ, vecSize * sizeof(float));
+  cudaMallocManaged(&vecX, paramSize * sizeof(float));
+  cudaMallocManaged(&vecY, paramSize * sizeof(float));
+  cudaMallocManaged(&vecZ, obsSize * sizeof(float));
   cudaMallocManaged(&gridX, gridSize * sizeof(float));
   cudaMallocManaged(&gridY, gridSize * sizeof(float));
   cudaMallocManaged(&gridZ, gridSize * sizeof(float));
 
-  linspaceCuda(vecX, vecSize, 1.0f, 3.0f);
-  linspaceCuda(vecY, vecSize, 1.0f, 3.0f);
-  linspaceCuda(vecZ, vecSize, 1.0f, 3.0f);
+  linspaceCuda(vecX, paramSize, 0.0f, 2.0f);
+  linspaceCuda(vecY, paramSize, 0.0f, 2.0f);
+  linspaceCuda(vecZ, obsSize, 0.0f, 1.0f);
 
   dim3 threadsPerBlock(4, 4, 4);
-  dim3 numBlocks((vecSize + threadsPerBlock.x - 1) / threadsPerBlock.x,
-                 (vecSize + threadsPerBlock.y - 1) / threadsPerBlock.y,
-                 (vecSize + threadsPerBlock.z - 1) / threadsPerBlock.z);
+  dim3 numBlocks((paramSize + threadsPerBlock.x - 1) / threadsPerBlock.x,
+                 (paramSize + threadsPerBlock.y - 1) / threadsPerBlock.y,
+                 (2 + threadsPerBlock.z - 1) / threadsPerBlock.z);
 
   create3dGridKernel<<<numBlocks, threadsPerBlock>>>(
-    vecX, vecY, vecZ, gridX, gridY, gridZ, vecSize
+    vecX, vecY, vecZ, gridX, gridY, gridZ, paramSize, obsSize
   );
 
   cudaDeviceSynchronize();
