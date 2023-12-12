@@ -39,14 +39,15 @@ int main(void)
   const float mu = 20.0f;
   const float sigma = 2.0f;
 
-  /* Generate the random variates */
-  /********************************/
-  const int rvs = 50;
+  /*******************************
+  * Generate the random variates *
+  *******************************/
+  const int rvsSize = 50;
   float *observations;
-  /* Allocate space for results */
-  CUDA_CALL(cudaMallocManaged(&observations, rvs * sizeof(float)));
 
-  generateNormalCuda(rvs, mu, sigma, observations);
+  CUDA_CALL(cudaMallocManaged(&observations, rvsSize * sizeof(float)));
+
+  generateNormalCuda(rvsSize, mu, sigma, observations);
 
   // Due to seed, the first element should be 18.5689, let's check how close
   // we are from it
@@ -55,13 +56,12 @@ int main(void)
     return 1;
   }
 
-  /*
-  Create the grids
-  ****************
-  */
+  /*******************
+  * Create the grids *
+  *******************/
 
   const int vecSize = 101;
-  const int gridSize = vecSize * vecSize * rvs;
+  const int gridSize = vecSize * vecSize * rvsSize;
   const float startMu = 18.0f;
   const float endMu = 22.0f;
   const float startSigma = 1.0f;
@@ -69,32 +69,38 @@ int main(void)
 
   float *vectorMu, *vectorSigma, *likes;
 
-  // TODO: these grid folks are auxiliary constructions that we might want to
-  // put in a separate function
+  // TODO: these grid folks are auxiliary constructions only used to compute
+  // likes, so we might want to put them in a separate function.
   float *gridX, *gridY, *gridZ;
 
   CUDA_CALL(cudaMallocManaged(&vectorMu, vecSize * sizeof(float)));
   CUDA_CALL(cudaMallocManaged(&vectorSigma, vecSize * sizeof(float)));
-  CUDA_CALL(cudaMallocManaged(&likes, rvs * sizeof(float)));
+
   CUDA_CALL(cudaMallocManaged(&gridX, gridSize * sizeof(float)));
   CUDA_CALL(cudaMallocManaged(&gridY, gridSize * sizeof(float)));
   CUDA_CALL(cudaMallocManaged(&gridZ, gridSize * sizeof(float)));
 
-  CUDA_CALL(cudaMemset(likes, 0, rvs * sizeof(int)));
-
   linspaceCuda(vectorMu, vecSize, startMu, endMu);
   linspaceCuda(vectorSigma, vecSize, startSigma, endSigma);
   create3dGrid(
-    vectorMu, vectorSigma, observations, gridX, gridY, gridZ, vecSize, rvs
+    vectorMu, vectorSigma, observations, gridX, gridY, gridZ, vecSize, rvsSize
   );
 
   checkArrays(gridX, gridY, gridZ);
 
-  /*
-  Compute the Likelihood Function
+  /* It seems that we are reinventing the wheel a bit as we could use the
+  cuTENSOR library. This, however, has a steeeeep learning curve 😕
   */
 
-  /* Cleanup */
+  /* Compute the Likelihood Function */
+  CUDA_CALL(cudaMallocManaged(&likes, gridSize * sizeof(float)));
+  CUDA_CALL(cudaMemset(likes, 0, gridSize * sizeof(int)));
+  computeLikesCuda(likes, gridX, gridY, gridZ, gridSize);
+
+  /**********
+  * Cleanup *
+  **********/
+
   CUDA_CALL(cudaFree(observations));
   CUDA_CALL(cudaFree(vectorMu));
   CUDA_CALL(cudaFree(vectorSigma));

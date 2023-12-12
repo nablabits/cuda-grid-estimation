@@ -65,26 +65,6 @@ void linspaceCuda(float* array, int size, float start, float end) {
     cudaDeviceSynchronize();
 }
 
-
-__device__ float normalPdf(float x, float mu, float sigma) {
-  return exp(-0.5f * pow((x - mu) / sigma, 2.0f)) / (sigma * sqrt(2.0f * M_PI));
-}
-
-__global__ void normalPdfKernel(float *likes, float *gridX, float *gridY, float *obs, int gridSize) {
-  int i = blockIdx.x * blockDim.x + threadIdx.x;
-  int ii = blockIdx.y * blockDim.y + threadIdx.y;
-
-  int idx = i * gridSize + ii;
-
-  if (i < gridSize) {
-    float x = obs[i];
-    float sigma = gridY[i];
-    float mu = gridX[i];
-    likes[idx] = normalPdf(x, mu, sigma);
-  }
-}
-
-
 __global__ void create3dGridKernel(float *vecX, float *vecY, float *vecZ,
                                    float *gridX, float *gridY, float *gridZ,
                                    int vecXYSize, int vecZSize)
@@ -117,11 +97,35 @@ void create3dGrid(float *vecX, float *vecY, float *vecZ,
   );
 
   cudaDeviceSynchronize();
-
-  printArray(gridX, 60);
-  printArray(gridY, 60);
-  printArray(gridZ, 60);
 }
 
+__device__ float normalPdf(float x, float mu, float sigma) {
+  return exp(-0.5f * pow((x - mu) / sigma, 2.0f)) / (sigma * sqrt(2.0f * M_PI));
+}
 
+__global__ void normalPdfKernel(float *likes, float *gridX, float *gridY, float *gridZ, int gridSize) {
+
+  // at this point we have three vectors that represent our 3d grid, so we just
+  // need to iterate over the arrays.
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+  if (i < gridSize) {
+    float x = gridZ[i];
+    float sigma = gridY[i];
+    float mu = gridX[i];
+    likes[i] = normalPdf(x, mu, sigma);
+  }
+}
+
+void computeLikesCuda(float *likes, float *gridX, float *gridY, float *gridZ, int gridSize) {
+  dim3 threadsPerBlock(256);
+  dim3 numBlocks((gridSize + threadsPerBlock.x - 1) / threadsPerBlock.x);
+
+  normalPdfKernel<<<numBlocks, threadsPerBlock>>>(likes, gridX, gridY, gridZ, gridSize);
+
+  printArray(gridX, 10);
+  printArray(gridY, 10);
+  printArray(gridZ, 10);
+  printArray(likes, 10);
+}
 #endif
