@@ -35,13 +35,19 @@ compute-sanintizer ./bin/grid
 
 int main(void)
 {
+  /*******************************
+  * Generate the random variates *
+  *******************************/
+
+  /*
+  We start by generating the random variates that will serve as a proxy of some
+  process in the real world of evidence gathering.
+  */
+
   /* These are the hidden folks we want to estimate*/
   const float mu = 20.0f;
   const float sigma = 2.0f;
 
-  /*******************************
-  * Generate the random variates *
-  *******************************/
   const int rvsSize = 50;
   float *observations;
 
@@ -49,16 +55,31 @@ int main(void)
 
   generateNormalCuda(rvsSize, mu, sigma, observations);
 
-  // Due to seed, the first element should be 18.5689, let's check how close
-  // we are from it
+  // Due to seed, the first element should be 18.5689, let's make sure we are
+  // we are close enough from it.
   if (observations[0] - 18.5689f > 0.0001f) {
-    std::cout << "Oh noh! " << observations[0] << std::endl;
+    std::cout << "Oh noh! unexpected observations" << observations[0];
+    std::cout << std::endl;
     return 1;
   }
 
   /*******************
   * Create the grids *
   *******************/
+
+ /*
+  We need a grid with the outer product of three vectors that will represent the
+  combinations of the parameters we want to estimate. This is, if our vectors
+  are [1, 2, 3] & [4, 5 ,6] & [1, 2] then our outer product will be:
+
+  [1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3]
+  [4, 4, 5, 5, 6, 6, 4, 4, 5, 5, 6, 6, 4, 4, 5, 5, 6, 6]
+  [1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2]
+
+  We use extensively the word `grid`, but it won't be a proper grid as the
+  output will be a vector. Granted, a vector with the same elements as the grid,
+  v1 x v2 x v3, but a vector after all.
+ */
 
   const int vecSize = 101;
   const int gridSize = vecSize * vecSize * rvsSize;
@@ -69,33 +90,15 @@ int main(void)
 
   float *vectorMu, *vectorSigma, *likes;
 
-  // TODO: these grid folks are auxiliary constructions only used to compute
-  // likes, so we might want to put them in a separate function.
-  float *gridX, *gridY, *gridZ;
-
   CUDA_CALL(cudaMallocManaged(&vectorMu, vecSize * sizeof(float)));
   CUDA_CALL(cudaMallocManaged(&vectorSigma, vecSize * sizeof(float)));
-
-  CUDA_CALL(cudaMallocManaged(&gridX, gridSize * sizeof(float)));
-  CUDA_CALL(cudaMallocManaged(&gridY, gridSize * sizeof(float)));
-  CUDA_CALL(cudaMallocManaged(&gridZ, gridSize * sizeof(float)));
-
-  linspaceCuda(vectorMu, vecSize, startMu, endMu);
-  linspaceCuda(vectorSigma, vecSize, startSigma, endSigma);
-  create3dGrid(
-    vectorMu, vectorSigma, observations, gridX, gridY, gridZ, vecSize, rvsSize
-  );
-
-  checkArrays(gridX, gridY, gridZ);
-
-  /* It seems that we are reinventing the wheel a bit as we could use the
-  cuTENSOR library. This, however, has a steeeeep learning curve 😕
-  */
-
-  /* Compute the Likelihood Function */
   CUDA_CALL(cudaMallocManaged(&likes, gridSize * sizeof(float)));
   CUDA_CALL(cudaMemset(likes, 0, gridSize * sizeof(int)));
-  computeLikesCuda(likes, gridX, gridY, gridZ, gridSize);
+
+  computeLikesWrapper(vectorMu, vectorSigma, observations, likes,
+                      startMu, endMu, startSigma, endSigma, vecSize, rvsSize);
+
+  // TODO: continue here, write some tests
 
   /**********
   * Cleanup *
@@ -104,9 +107,6 @@ int main(void)
   CUDA_CALL(cudaFree(observations));
   CUDA_CALL(cudaFree(vectorMu));
   CUDA_CALL(cudaFree(vectorSigma));
-  CUDA_CALL(cudaFree(gridX));
-  CUDA_CALL(cudaFree(gridY));
-  CUDA_CALL(cudaFree(gridZ));
   CUDA_CALL(cudaFree(likes));
 
   return 0;
