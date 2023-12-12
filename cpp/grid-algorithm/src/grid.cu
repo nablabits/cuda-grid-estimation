@@ -59,39 +59,36 @@ int main(void)
   Create the grids
   ****************
   */
-  float *vectorMu;
-  float *vectorSigma;
-  const int size = 101;
-  const int gridSize = size * size;
+
+  const int vecSize = 101;
+  const int gridSize = vecSize * vecSize * rvs;
   const float startMu = 18.0f;
   const float endMu = 22.0f;
   const float startSigma = 1.0f;
   const float endSigma = 3.0f;
 
-  float *gridX;
-  float *gridY;
+  float *vectorMu, *vectorSigma, *likes;
 
-  CUDA_CALL(cudaMallocManaged(&vectorMu, size * sizeof(float)));
-  CUDA_CALL(cudaMallocManaged(&vectorSigma, size * sizeof(float)));
+  // TODO: these grid folks are auxiliary constructions that we might want to
+  // put in a separate function
+  float *gridX, *gridY, *gridZ;
+
+  CUDA_CALL(cudaMallocManaged(&vectorMu, vecSize * sizeof(float)));
+  CUDA_CALL(cudaMallocManaged(&vectorSigma, vecSize * sizeof(float)));
+  CUDA_CALL(cudaMallocManaged(&likes, rvs * sizeof(float)));
   CUDA_CALL(cudaMallocManaged(&gridX, gridSize * sizeof(float)));
   CUDA_CALL(cudaMallocManaged(&gridY, gridSize * sizeof(float)));
+  CUDA_CALL(cudaMallocManaged(&gridZ, gridSize * sizeof(float)));
 
-  linspaceCuda(vectorMu, size, startMu, endMu);
-  linspaceCuda(vectorSigma, size, startSigma, endSigma);
-  createGridCuda(vectorMu, vectorSigma, gridX, gridY, size);
+  CUDA_CALL(cudaMemset(likes, 0, rvs * sizeof(int)));
 
-  // TODO: change these comments to the real values
-  // A couple of sanity checks
-  if (gridX[5050] != 20.0f) {
-    std::cout << "Oh noh! " << gridX[5050] << std::endl;
-    return 1;
-  }
+  linspaceCuda(vectorMu, vecSize, startMu, endMu);
+  linspaceCuda(vectorSigma, vecSize, startSigma, endSigma);
+  create3dGrid(
+    vectorMu, vectorSigma, observations, gridX, gridY, gridZ, vecSize, rvs
+  );
 
-  // 101 vectorMu * 1/2 vectorSigma; 5050 index
-  if (gridY[151] != 2.0f) {
-    std::cout << "Oh noh! " << gridY[151] << std::endl;
-    return 1;
-  }
+  checkArrays(gridX, gridY, gridZ);
 
   /*
   Compute the Likelihood Function
@@ -105,6 +102,8 @@ int main(void)
   CUDA_CALL(cudaFree(vectorSigma));
   CUDA_CALL(cudaFree(gridX));
   CUDA_CALL(cudaFree(gridY));
+  CUDA_CALL(cudaFree(gridZ));
+  CUDA_CALL(cudaFree(likes));
 
   return 0;
 }

@@ -11,6 +11,29 @@ void printArray(float *arr, int n=3) {
   std::cout << std::endl;
 }
 
+void checkArrays(float *gridX, float *gridY, float *gridZ)
+{
+  // 50 * 101 * 50
+  // One full cycle of observations times one full cycle of sigmas times half
+  // cycle of mus
+  int idx = 252500;
+  if (gridX[idx] != 20.0f) {
+    std::cout << "Oh noh! GridX right mismatch: " << gridX[idx] << std::endl;
+  }
+  if (gridX[idx - 1] != 19.96f) {
+    std::cout << "Oh noh! GridX left mismatch: " << gridX[idx - 1] << std::endl;
+  }
+
+  idx = 50;  // One full cycle of observations
+  if (gridY[idx] != 1.02f) {
+    std::cout << "Oh noh! GridY right mismatch" << gridY[idx] << std::endl;
+  }
+  if (gridY[idx - 1] != 1.0f) {
+    std::cout << "Oh noh! GridY left mismatch" << gridY[idx - 1] << std::endl;
+  }
+
+}
+
 __global__ void linspaceKernel(float *array, int size, float start, float end) {
   /*
   Create a linearly spaced array on the device.
@@ -134,45 +157,25 @@ __global__ void create3dGridKernel(float *vecX, float *vecY, float *vecZ,
   }
 }
 
-void create3dGrid() {
-  int paramSize = 3;
-  int obsSize = 2;
-  int gridSize = paramSize * paramSize * obsSize;
-
-  float *vecX, *vecY, *vecZ;
-  float *gridX, *gridY, *gridZ;
-  cudaMallocManaged(&vecX, paramSize * sizeof(float));
-  cudaMallocManaged(&vecY, paramSize * sizeof(float));
-  cudaMallocManaged(&vecZ, obsSize * sizeof(float));
-  cudaMallocManaged(&gridX, gridSize * sizeof(float));
-  cudaMallocManaged(&gridY, gridSize * sizeof(float));
-  cudaMallocManaged(&gridZ, gridSize * sizeof(float));
-
-  linspaceCuda(vecX, paramSize, 0.0f, 2.0f);
-  linspaceCuda(vecY, paramSize, 0.0f, 2.0f);
-  linspaceCuda(vecZ, obsSize, 0.0f, 1.0f);
+void create3dGrid(float *vecX, float *vecY, float *vecZ,
+                  float *gridX, float *gridY, float *gridZ,
+                  int vecXYSize, int vecZSize)
+{
 
   dim3 threadsPerBlock(4, 4, 4);
-  dim3 numBlocks((paramSize + threadsPerBlock.x - 1) / threadsPerBlock.x,
-                 (paramSize + threadsPerBlock.y - 1) / threadsPerBlock.y,
-                 (2 + threadsPerBlock.z - 1) / threadsPerBlock.z);
+  dim3 numBlocks((vecXYSize + threadsPerBlock.x - 1) / threadsPerBlock.x,
+                 (vecXYSize + threadsPerBlock.y - 1) / threadsPerBlock.y,
+                 (vecZSize + threadsPerBlock.z - 1) / threadsPerBlock.z);
 
   create3dGridKernel<<<numBlocks, threadsPerBlock>>>(
-    vecX, vecY, vecZ, gridX, gridY, gridZ, paramSize, obsSize
+    vecX, vecY, vecZ, gridX, gridY, gridZ, vecXYSize, vecZSize
   );
 
   cudaDeviceSynchronize();
 
-  printArray(gridX, gridSize);
-  printArray(gridY, gridSize);
-  printArray(gridZ, gridSize);
-
-  cudaFree(vecX);
-  cudaFree(vecY);
-  cudaFree(vecZ);
-  cudaFree(gridX);
-  cudaFree(gridY);
-  cudaFree(gridZ);
+  printArray(gridX, 60);
+  printArray(gridY, 60);
+  printArray(gridZ, 60);
 }
 
 
