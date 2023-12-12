@@ -115,8 +115,65 @@ __global__ void normalPdfKernel(float *likes, float *gridX, float *gridY, int gr
     float sigma = gridY[i];
     float mu = gridX[i];
     likes[i] = normalPdf(x, mu, sigma);
+// TODO: Continue here, extend this function to compute the grids for the
+// real values.
+__global__ void create3dGridKernel(float *vecX, float *vecY, float *vecZ,
+                                   float *gridX, float *gridY, float *gridZ,
+                                   int vecSize)
+{
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  int ii = blockIdx.y * blockDim.y + threadIdx.y;
+  int iii = blockIdx.z * blockDim.z + threadIdx.z;
+
+  int idx = i * vecSize * vecSize + ii * vecSize + iii;
+
+  if (i < vecSize && ii < vecSize && iii < vecSize) {
+    gridX[idx] = vecX[i];
+    gridY[idx] = vecY[ii];
+    gridZ[idx] = vecZ[iii];
   }
 }
+
+void create3dGrid() {
+  int vecSize = 3;
+  int gridSize = vecSize * vecSize * vecSize;
+
+  float *vecX, *vecY, *vecZ;
+  float *gridX, *gridY, *gridZ;
+  cudaMallocManaged(&vecX, vecSize * sizeof(float));
+  cudaMallocManaged(&vecY, vecSize * sizeof(float));
+  cudaMallocManaged(&vecZ, vecSize * sizeof(float));
+  cudaMallocManaged(&gridX, gridSize * sizeof(float));
+  cudaMallocManaged(&gridY, gridSize * sizeof(float));
+  cudaMallocManaged(&gridZ, gridSize * sizeof(float));
+
+  linspaceCuda(vecX, vecSize, 1.0f, 3.0f);
+  linspaceCuda(vecY, vecSize, 1.0f, 3.0f);
+  linspaceCuda(vecZ, vecSize, 1.0f, 3.0f);
+
+  dim3 threadsPerBlock(4, 4, 4);
+  dim3 numBlocks((vecSize + threadsPerBlock.x - 1) / threadsPerBlock.x,
+                 (vecSize + threadsPerBlock.y - 1) / threadsPerBlock.y,
+                 (vecSize + threadsPerBlock.z - 1) / threadsPerBlock.z);
+
+  create3dGridKernel<<<numBlocks, threadsPerBlock>>>(
+    vecX, vecY, vecZ, gridX, gridY, gridZ, vecSize
+  );
+
+  cudaDeviceSynchronize();
+
+  printArray(gridX, gridSize);
+  printArray(gridY, gridSize);
+  printArray(gridZ, gridSize);
+
+  cudaFree(vecX);
+  cudaFree(vecY);
+  cudaFree(vecZ);
+  cudaFree(gridX);
+  cudaFree(gridY);
+  cudaFree(gridZ);
+}
+
 
 void simpleLikelihood() {
   /*
