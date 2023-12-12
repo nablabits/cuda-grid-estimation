@@ -66,80 +66,25 @@ void linspaceCuda(float* array, int size, float start, float end) {
 }
 
 
-__global__ void createGridKernel(
-  float *vectorX, float *vectorY, float *gridX, float *gridY, int size
-  )
-{
-  /*
-  Create the outer product of two verctors on the device.
-
-  We need a grid with the outer product of two vectors that will represent the
-  combinations of the parameters we want to estimate. This is, if our vectors
-  are [1, 2, 3] & [4, 5 ,6], then our outer product will be:
-
-  [1, 2, 3, 1, 2, 3, 1, 2, 3]
-  [4, 4, 4, 5, 5, 5, 6, 6, 6]
-
-  TODO: we treat vectors and grids as separate objects. A possible improvement
-  here could be to treat them as a single multidimensional array.
-
-  Arguments:
-    vectorX: the first vector
-    vectorY: the second vector
-    gridX: the grid of the first vector to be filled
-    gridY: the grid of the second vector to be filled
-    size: the size of the vectors
-  */
-
-  int i = blockIdx.x * blockDim.x + threadIdx.x;
-  int ii = blockIdx.y * blockDim.y + threadIdx.y;
-
-  int pos = i * size + ii;
-  if (i < size && ii < size) {
-    gridX[pos] = vectorX[i];
-    gridY[pos] = vectorY[ii];
-  }
-}
-
-void createGridCuda(
-  float *vectorX, float *vectorY, float *gridX, float *gridY, int size
-  )
-{
-  /*
-  Define the configuration of createGrid kernel and call it.
-
-  Arguments:
-    vectorX: the first vector
-    vectorY: the second vector
-    gridX: the grid of the first vector to be filled
-    gridY: the grid of the second vector to be filled
-    size: the size of the vectors
-  */
-
-  dim3 threadsPerBlock(16, 16);  // You can adjust the block size as needed
-  dim3 numBlocks((size + threadsPerBlock.x - 1) / threadsPerBlock.x,
-                 (size + threadsPerBlock.y - 1) / threadsPerBlock.y);
-
-  createGridKernel<<<numBlocks, threadsPerBlock>>>(
-    vectorX, vectorY, gridX, gridY, size
-  );
-
-  cudaDeviceSynchronize();
-}
-
 __device__ float normalPdf(float x, float mu, float sigma) {
   return exp(-0.5f * pow((x - mu) / sigma, 2.0f)) / (sigma * sqrt(2.0f * M_PI));
 }
 
-__global__ void normalPdfKernel(float *likes, float *gridX, float *gridY, int gridSize) {
+__global__ void normalPdfKernel(float *likes, float *gridX, float *gridY, float *obs, int gridSize) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
+  int ii = blockIdx.y * blockDim.y + threadIdx.y;
+
+  int idx = i * gridSize + ii;
+
   if (i < gridSize) {
-    float x = 20.5f;
+    float x = obs[i];
     float sigma = gridY[i];
     float mu = gridX[i];
-    likes[i] = normalPdf(x, mu, sigma);
-// TODO: Continue here, extend this function to compute the grids for the
-// real values.
+    likes[idx] = normalPdf(x, mu, sigma);
+  }
+}
+
+
 __global__ void create3dGridKernel(float *vecX, float *vecY, float *vecZ,
                                    float *gridX, float *gridY, float *gridZ,
                                    int vecXYSize, int vecZSize)
@@ -178,43 +123,5 @@ void create3dGrid(float *vecX, float *vecY, float *vecZ,
   printArray(gridZ, 60);
 }
 
-
-void simpleLikelihood() {
-  /*
-  Next steps:
-  - Extend the function to take a vector of observations
-  */
-  // float observations = 20.5f;
-  int vecSize = 3;
-  int gridSize = vecSize * vecSize;
-
-  float *vecX, *vecY;
-  float *gridX, *gridY, *likes;
-  cudaMallocManaged(&vecX, vecSize * sizeof(float));
-  cudaMallocManaged(&vecY, vecSize * sizeof(float));
-  cudaMallocManaged(&gridX, gridSize * sizeof(float));
-  cudaMallocManaged(&gridY, gridSize * sizeof(float));
-  cudaMallocManaged(&likes, gridSize * sizeof(float));
-
-  linspaceCuda(vecX, 3, 19.0f, 21.0f);
-  linspaceCuda(vecY, 3, 1.0f, 3.0f);
-  createGridCuda(vecX, vecY, gridX, gridY, vecSize);
-
-  dim3 threadsPerBlock(16, 16);  // You can adjust the block size as needed
-  dim3 numBlocks((gridSize + threadsPerBlock.x - 1) / threadsPerBlock.x,
-                 (gridSize + threadsPerBlock.y - 1) / threadsPerBlock.y);
-  normalPdfKernel<<<numBlocks, threadsPerBlock>>>(likes, gridX, gridY, gridSize);
-
-  printArray(gridX, gridSize);
-  printArray(gridY, gridSize);
-  printArray(likes, gridSize);
-
-  // Clean up
-  cudaFree(gridX);
-  cudaFree(gridY);
-  cudaFree(likes);
-  cudaFree(vecX);
-  cudaFree(vecY);
-}
 
 #endif

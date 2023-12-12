@@ -94,8 +94,6 @@ int main(void)
   Compute the Likelihood Function
   */
 
-  simpleLikelihood();
-
   /* Cleanup */
   CUDA_CALL(cudaFree(observations));
   CUDA_CALL(cudaFree(vectorMu));
