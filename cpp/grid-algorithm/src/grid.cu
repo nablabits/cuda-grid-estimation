@@ -98,7 +98,15 @@ int main(void)
   computeLikesWrapper(vectorMu, vectorSigma, observations, likes,
                       startMu, endMu, startSigma, endSigma, vecSize, rvsSize);
 
-  // TODO: continue here, write some tests
+
+  /************************
+  * Compute the posterior *
+  ************************/
+  float *posterior;
+  const int posteriorSize = vecSize * vecSize;
+  CUDA_CALL(cudaMallocManaged(&posterior, posteriorSize * sizeof(float)));
+  computePosteriorWrapper();
+
 
   /**********
   * Cleanup *
@@ -108,6 +116,7 @@ int main(void)
   CUDA_CALL(cudaFree(vectorMu));
   CUDA_CALL(cudaFree(vectorSigma));
   CUDA_CALL(cudaFree(likes));
+  CUDA_CALL(cudaFree(posterior));
 
   return 0;
 }

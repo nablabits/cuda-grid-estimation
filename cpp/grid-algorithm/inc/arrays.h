@@ -57,6 +57,9 @@ void linspaceCuda(float* array, int size, float start, float end) {
     /*
     Define the configuration of the linspace kernel.
 
+    TODO: `end` should not be included as to replicate the original
+    implementation np.linspace.
+
     array: output array
     n: length of array
     start: start of range (included)
@@ -201,4 +204,41 @@ void computeLikesWrapper(float *vecX, float *vecY, float *vecZ, float *output,
   cudaFree(gridZ);
 }
 
+void computePosteriorWrapper()
+{
+  /*
+  Wrap the operations needed to compute the posterior function.
+
+  Let's start simple with a linspace(1, 9) and:
+  - [x] Compute the eduction over axis with for loops
+  - [ ] move the reduction to a CUDA Kernel
+  - [ ] Adapt the function to the full grid
+  */
+  float *likes;
+  cudaMallocManaged(&likes, 9 * sizeof(float));
+  linspaceCuda(likes, 9, 1, 9);
+
+  float *posterior = new float[3];
+
+  printf("------->\n");
+  printArray(likes, 9);
+
+  int value = 1;
+  int posteriorIdx = 0;
+  for (int i = 0; i < 9; i++) {
+    value *= likes[i];
+    if (i % 3 == 2) {
+      posterior[posteriorIdx++] = value;
+      value = 1;
+    }
+  }
+
+  printf("------->\n");
+  printArray(posterior, 3);
+
+  cudaFree(likes);
+  delete posterior;
+
+
+}
 #endif
