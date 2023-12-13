@@ -104,7 +104,7 @@ __global__ void create3dGridKernel(float *vecX, float *vecY, float *vecZ,
   }
 }
 
-void create3dGrid(float *vecX, float *vecY, float *vecZ,
+void create3dGridCuda(float *vecX, float *vecY, float *vecZ,
                   float *gridX, float *gridY, float *gridZ,
                   int vecXYSize, int vecZSize)
 {
@@ -162,6 +162,7 @@ void computeLikesCuda(float *likes, float *gridX, float *gridY, float *gridZ,
 
   cudaDeviceSynchronize();
 
+  // TODO: remove these guys once we are done with the full algorithm
   printArray(gridX, 10);
   printArray(gridY, 10);
   printArray(gridZ, 10);
@@ -187,7 +188,7 @@ void computeLikesWrapper(float *vecX, float *vecY, float *vecZ, float *output,
   linspaceCuda(vecX, vecXYSize, startX, endX);
   linspaceCuda(vecY, vecXYSize, startY, endY);
 
-  create3dGrid(
+  create3dGridCuda(
     vecX, vecY, vecZ, gridX, gridY, gridZ, vecXYSize, vecZSize
   );
 

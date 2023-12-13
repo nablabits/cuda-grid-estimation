@@ -14,23 +14,8 @@ make all
 ./bin/tests
 */
 
-
-class CUDATest : public ::testing::Test {
-protected:
-    // Set up any common resources or configurations needed for the tests
-    // For CUDA, you might allocate device memory, etc.
-    void SetUp() override {
-        // Add setup code here if needed
-    }
-
-    // Clean up any resources allocated in SetUp
-    void TearDown() override {
-        // Add cleanup code here if needed
-    }
-};
-
 // Test case for the CUDA function
-TEST_F(CUDATest, GenerateRandomVariates) {
+TEST(CUDATest, GenerateRandomVariates) {
     unsigned int numElements = 3;
     curandState *devStates;
     float *devResults;
@@ -58,41 +43,94 @@ TEST_F(CUDATest, GenerateRandomVariates) {
 }
 
 
-
-TEST_F(CUDATest, GenerateGrids) {
+TEST(CUDATest, Linspaces) {
   // SetUp
-  const int size = 2;
+  const int size = 3;
   const float start = 1.0f;
   const float end = 2.0f;
 
-  float *vectorX;
-  float *vectorY;
-  float *gridX;
-  float *gridY;
-
-  cudaMallocManaged(&vectorX, size * sizeof(float));
-  cudaMallocManaged(&vectorY, size * sizeof(float));
-  cudaMallocManaged(&gridX, size * size * sizeof(float));
-  cudaMallocManaged(&gridY, size * size * sizeof(float));
+  float * vecX;
+  cudaMallocManaged(&vecX, size * sizeof(float));
 
   // Act
-  linspaceCuda(vectorX, size, start, end);
-  linspaceCuda(vectorY, size, start, end);
-  createGridCuda(vectorX, vectorY, gridX, gridY, size);
+  linspaceCuda(vecX, size, start, end);
 
   // Assert
-  float expectedGridX[4] = {1.0f, 1.0f, 2.0f, 2.0f};
-  float expectedGridY[4] = {1.0f, 2.0f, 1.0f, 2.0f};
+  float expectedVecX[size] = {1.0f, 1.5f, 2.0f};
+  ASSERT_TRUE(std::equal(vecX, vecX + size, expectedVecX));
 
-  ASSERT_TRUE(std::equal(gridX, gridX + size * size, expectedGridX));
-  ASSERT_TRUE(std::equal(gridY, gridY + size * size, expectedGridY));
+  // Tear down
+  cudaFree(vecX);
+}
+
+TEST(CUDATest, GenerateGrids) {
+  // SetUp
+  const int vecXYSize = 3;
+  const int vecZSize = 2;
+  const int gridSize = vecXYSize * vecXYSize * vecZSize;
+
+  float *vecX, *vecY, *vecZ;
+  float *gridX, *gridY, *gridZ;
+
+  cudaMallocManaged(&vecX, vecXYSize * sizeof(float));
+  cudaMallocManaged(&vecY, vecXYSize * sizeof(float));
+  cudaMallocManaged(&vecZ, vecZSize * sizeof(float));
+  cudaMallocManaged(&gridX, gridSize * sizeof(float));
+  cudaMallocManaged(&gridY, gridSize * sizeof(float));
+  cudaMallocManaged(&gridZ, gridSize * sizeof(float));
+
+  // Act
+  linspaceCuda(vecX, vecXYSize, 1, 3);
+  linspaceCuda(vecY, vecXYSize, 1, 3);
+  linspaceCuda(vecZ, vecZSize, 4, 5);
+  create3dGridCuda(vecX, vecY, vecZ, gridX, gridY, gridZ, vecXYSize, vecZSize);
+
+  // Assert
+  float expectedX[18] = {1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3};
+  float expectedY[18] = {1, 1, 2, 2, 3, 3, 1, 1, 2, 2, 3, 3, 1, 1, 2, 2, 3, 3};
+  float expectedZ[18] = {4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5};
+
+  ASSERT_TRUE(std::equal(gridX, gridX + gridSize, expectedX));
+  ASSERT_TRUE(std::equal(gridY, gridY + gridSize, expectedY));
+  ASSERT_TRUE(std::equal(gridZ, gridZ + gridSize, expectedZ));
 
   // TearDown
-  cudaFree(vectorX);
-  cudaFree(vectorY);
+  cudaFree(vecX);
+  cudaFree(vecY);
+  cudaFree(vecZ);
   cudaFree(gridX);
   cudaFree(gridY);
+  cudaFree(gridZ);
 }
+
+TEST(CUDATest, ComputeLikes) {
+  int gridSize = 3;
+  float *vecX, *vecY, *vecZ, *likes;
+
+  cudaMallocManaged(&vecX, gridSize * sizeof(float));
+  cudaMallocManaged(&vecY, gridSize * sizeof(float));
+  cudaMallocManaged(&vecZ, gridSize * sizeof(float));
+  cudaMallocManaged(&likes, gridSize * sizeof(float));
+
+  linspaceCuda(vecX, gridSize, 20.0f, 22.0f);  // [20, 21, 22]
+  linspaceCuda(vecY, gridSize, 1.0f, 3.0f);  // [1, 2, 3]
+  linspaceCuda(vecZ, gridSize, 20.0f, 21.0f);  // [20, 20.5, 21]
+
+  computeLikesCuda(likes, vecX, vecY, vecZ, gridSize);
+
+  EXPECT_NEAR(likes[0], 0.39894228, 1e-5);
+  EXPECT_NEAR(likes[1], 0.19333406, 1e-5);
+  EXPECT_NEAR(likes[2], 0.12579441, 1e-5);
+
+  // TearDown
+  cudaFree(vecX);
+  cudaFree(vecY);
+  cudaFree(vecZ);
+  cudaFree(likes);
+}
+
+
+
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
