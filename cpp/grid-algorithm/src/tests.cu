@@ -3,8 +3,7 @@
 #include <curand.h>
 #include <curand_kernel.h>
 
-#include "../inc/normal_kernel.h"
-#include "../inc/arrays.h"
+#include "../inc/cuda_functions.h"
 
 /*
 How to run this test suite:

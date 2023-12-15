@@ -1,8 +1,6 @@
 #include <iostream>
-#include <curand_kernel.h>
 
-#include "../inc/normal_kernel.h"
-#include "../inc/arrays.h"
+#include "../inc/cuda_functions.h"
 
 
 // this is a macro
