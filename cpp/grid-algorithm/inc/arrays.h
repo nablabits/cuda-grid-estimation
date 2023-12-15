@@ -204,40 +204,85 @@ void computeLikesWrapper(float *vecX, float *vecY, float *vecZ, float *output,
   cudaFree(gridZ);
 }
 
+
+__global__ void computePosteriorKernel(float *posterior, float **likes)
+{
+  /* Compute the posterior function on the device. */
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+  // Use a parallel reduction to calculate the product
+  for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
+      if (idx < stride && idx + stride < 3) {
+          likes[0][idx] *= likes[0][idx + stride];
+          likes[1][idx] *= likes[1][idx + stride];
+          likes[2][idx] *= likes[2][idx + stride];
+      }
+      __syncthreads();
+  }
+
+  // Store the result in the outcome
+  if (idx == 0) {
+      posterior[0] = likes[0][0];
+      posterior[1] = likes[1][0];
+      posterior[2] = likes[2][0];
+  }
+}
+
+void reshapeArray(float *flatArray, float **output, int m, int n) {
+  for (int i = 0; i < n; ++i) {
+    for (int j = 0; j < m; ++j) {
+      output[i][j] = flatArray[i * m + j];
+    }
+  }
+
+  for (int i = 0; i < n; ++i) {
+    for (int j = 0; j < m; ++j) {
+      std::cout << output[i][j] << ' ';
+    }
+    std::cout << '\n';
+  }
+}
+
 void computePosteriorWrapper()
 {
   /*
   Wrap the operations needed to compute the posterior function.
 
   Let's start simple with a linspace(1, 9) and:
-  - [x] Compute the eduction over axis with for loops
-  - [ ] move the reduction to a CUDA Kernel
+  - [x] Compute the reduction over axis with for loops
+  - [x] move the reduction to a CUDA Kernel
   - [ ] Adapt the function to the full grid
   */
   float *likes;
   cudaMallocManaged(&likes, 9 * sizeof(float));
   linspaceCuda(likes, 9, 1, 9);
 
-  float *posterior = new float[3];
+  float *posterior;
+  cudaMallocManaged(&posterior, 3 * sizeof(float));
 
-  printf("------->\n");
-  printArray(likes, 9);
-
-  int value = 1;
-  int posteriorIdx = 0;
-  for (int i = 0; i < 9; i++) {
-    value *= likes[i];
-    if (i % 3 == 2) {
-      posterior[posteriorIdx++] = value;
-      value = 1;
-    }
+  float **likesMatrix;
+  cudaMallocManaged(&likesMatrix, 3 * sizeof(float*));
+  for (int i = 0; i < 3; i++) {
+    cudaMallocManaged(&likesMatrix[i], 3 * sizeof(float));
   }
 
-  printf("------->\n");
+  reshapeArray(likes, likesMatrix, 3, 3);
+
+  dim3 threadsPerBlock(256);
+  dim3 numBlocks((9 + threadsPerBlock.x - 1) / threadsPerBlock.x);
+
+  computePosteriorKernel<<<numBlocks, threadsPerBlock>>>(posterior, likesMatrix);
+
+  // Always syncronize before printing data.
+  cudaDeviceSynchronize();
+
   printArray(posterior, 3);
 
   cudaFree(likes);
-  delete posterior;
+  cudaFree(posterior);
+  for (int i = 0; i < 3; i++) {
+    cudaFree(likesMatrix[i]);
+  }
 
 
 }
