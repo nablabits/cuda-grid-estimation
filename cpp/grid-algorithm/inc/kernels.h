@@ -127,7 +127,7 @@ __global__ void computeLikesKernel(float *likes, float *gridX, float *gridY,
 }
 
 
-__global__ void computePosteriorKernel(float *posterior, float **likes)
+__global__ void computePosteriorKernel(float *posterior, float **likes, int rows)
 {
   /* Compute the posterior function on the device.
 
@@ -151,19 +151,19 @@ __global__ void computePosteriorKernel(float *posterior, float **likes)
 
   // Use a parallel reduction to calculate the product
   for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
-      if (idx < stride && idx + stride < 3) {
-          likes[0][idx] *= likes[0][idx + stride];
-          likes[1][idx] *= likes[1][idx + stride];
-          likes[2][idx] *= likes[2][idx + stride];
+      if (idx < stride && idx + stride < 5) {
+        for (int i = 0; i < rows; i++) {
+          likes[i][idx] *= likes[i][idx + stride];
+        }
       }
       __syncthreads();
   }
 
   // Store the result in the outcome
   if (idx == 0) {
-      posterior[0] = likes[0][0];
-      posterior[1] = likes[1][0];
-      posterior[2] = likes[2][0];
+    for (int i = 0; i < rows; i++) {
+      posterior[i] = likes[i][0];
+    }
   }
 }
 

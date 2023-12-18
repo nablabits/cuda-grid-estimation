@@ -131,36 +131,46 @@ void computePosteriorWrapper()
   - [ ] Adapt the function to the full grid
   */
   float *likes;
-  cudaMallocManaged(&likes, 9 * sizeof(float));
-  linspaceCuda(likes, 9, 1, 9);
+  int likesSize = 10;  // 101*50 in the end
+  cudaMallocManaged(&likes, likesSize * sizeof(float));
+  linspaceCuda(likes, likesSize, 1, likesSize);
 
   float *posterior;
-  cudaMallocManaged(&posterior, 3 * sizeof(float));
+  int posteriorSize = 2;  // this will be 101 in the end
+  cudaMallocManaged(&posterior, posteriorSize * sizeof(float));
 
   float **likesMatrix;
-  cudaMallocManaged(&likesMatrix, 3 * sizeof(float*));
-  for (int i = 0; i < 3; i++) {
-    cudaMallocManaged(&likesMatrix[i], 3 * sizeof(float));
+  int rows = posteriorSize;
+  int cols = likesSize / posteriorSize;
+
+  if (likesSize != rows * cols) {
+    printf("ERROR: likesSize != rows * cols\n");
+    return;
   }
 
-  reshapeArray(likes, likesMatrix, 3, 3);
+  cudaMallocManaged(&likesMatrix, rows * sizeof(float*));  // 2 rows
+  for (int i = 0; i < cols; i++) {
+    cudaMallocManaged(&likesMatrix[i], cols * sizeof(float));  // of 5 elem each
+  }
+
+  reshapeArray(likes, likesMatrix, cols, rows);
 
   dim3 threadsPerBlock(256);
-  dim3 numBlocks((9 + threadsPerBlock.x - 1) / threadsPerBlock.x);
+  dim3 numBlocks((likesSize + threadsPerBlock.x - 1) / threadsPerBlock.x);
 
-  computePosteriorKernel<<<numBlocks, threadsPerBlock>>>(posterior, likesMatrix);
+  computePosteriorKernel<<<numBlocks, threadsPerBlock>>>(posterior, likesMatrix, rows);
 
   // Always syncronize before printing data.
   cudaDeviceSynchronize();
 
-  printArray(posterior, 3);
+  printf("------->\n");
+  printArray(posterior, posteriorSize);
 
   cudaFree(likes);
   cudaFree(posterior);
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < cols; i++) {
     cudaFree(likesMatrix[i]);
   }
-
-
 }
+
 #endif
