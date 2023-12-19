@@ -61,6 +61,8 @@ int main(void)
     return 1;
   }
 
+  printArray(observations, rvsSize);
+
   /*******************
   * Create the grids *
   *******************/
@@ -100,10 +102,10 @@ int main(void)
   /************************
   * Compute the posterior *
   ************************/
-  float *posterior;
+  double *posterior;
   const int posteriorSize = vecSize * vecSize;
-  CUDA_CALL(cudaMallocManaged(&posterior, posteriorSize * sizeof(float)));
-  computePosteriorWrapper();
+  CUDA_CALL(cudaMallocManaged(&posterior, posteriorSize * sizeof(double)));
+  computePosteriorWrapper(likes, posterior, gridSize, posteriorSize);
 
 
   /**********

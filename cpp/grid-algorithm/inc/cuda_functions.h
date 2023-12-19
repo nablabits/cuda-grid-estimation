@@ -92,7 +92,9 @@ void computeLikesWrapper(float *vecX, float *vecY, float *vecZ, float *output,
                          int startX, int endX, int startY, int endY,
                          int vecXYSize, int vecZSize)
 {
-  /* Wrap the operations needed to compute the likelihood function. */
+  /*
+  Wrap the operations needed to compute the densities of the likelihood function.
+  */
 
   /* It seems that we are reinventing the wheel a bit as we could use the
   cuTENSOR library. This, however, has a steeeeep learning curve 😕
@@ -113,6 +115,7 @@ void computeLikesWrapper(float *vecX, float *vecY, float *vecZ, float *output,
 
   checkArrays(gridX, gridY, gridZ);
 
+  // TODO: this is basically compute densities, as the likes is the prod over axis 2
   computeLikesCuda(output, gridX, gridY, gridZ, gridSize);
 
   cudaFree(gridX);
@@ -120,37 +123,24 @@ void computeLikesWrapper(float *vecX, float *vecY, float *vecZ, float *output,
   cudaFree(gridZ);
 }
 
-void computePosteriorWrapper()
+void computePosteriorWrapper(float *likes, double *posterior, int likesSize, int posteriorSize)
 {
   /*
   Wrap the operations needed to compute the posterior function.
-
-  Let's start simple with a linspace(1, 9) and:
-  - [x] Compute the reduction over axis with for loops
-  - [x] move the reduction to a CUDA Kernel
-  - [ ] Adapt the function to the full grid
   */
-  float *likes;
-  int likesSize = 10;  // 101*50 in the end
-  cudaMallocManaged(&likes, likesSize * sizeof(float));
-  linspaceCuda(likes, likesSize, 1, likesSize);
 
-  float *posterior;
-  int posteriorSize = 2;  // this will be 101 in the end
-  cudaMallocManaged(&posterior, posteriorSize * sizeof(float));
-
-  float **likesMatrix;
-  int rows = posteriorSize;
-  int cols = likesSize / posteriorSize;
+  double **likesMatrix;
+  int rows = posteriorSize;  // 101x101 rows
+  int cols = likesSize / posteriorSize;  // of 50 elements each
 
   if (likesSize != rows * cols) {
     printf("ERROR: likesSize != rows * cols\n");
     return;
   }
 
-  cudaMallocManaged(&likesMatrix, rows * sizeof(float*));  // 2 rows
-  for (int i = 0; i < cols; i++) {
-    cudaMallocManaged(&likesMatrix[i], cols * sizeof(float));  // of 5 elem each
+  cudaMallocManaged(&likesMatrix, rows * sizeof(double*));
+  for (int i = 0; i < rows; i++) {
+    cudaMallocManaged(&likesMatrix[i], cols * sizeof(double));
   }
 
   reshapeArray(likes, likesMatrix, cols, rows);
@@ -158,19 +148,18 @@ void computePosteriorWrapper()
   dim3 threadsPerBlock(256);
   dim3 numBlocks((likesSize + threadsPerBlock.x - 1) / threadsPerBlock.x);
 
-  computePosteriorKernel<<<numBlocks, threadsPerBlock>>>(posterior, likesMatrix, rows);
+  computePosteriorKernel<<<numBlocks, threadsPerBlock>>>(posterior, likesMatrix, rows, cols);
 
   // Always syncronize before printing data.
   cudaDeviceSynchronize();
 
   printf("------->\n");
-  printArray(posterior, posteriorSize);
+  printArrayd(posterior, 10);
 
-  cudaFree(likes);
-  cudaFree(posterior);
   for (int i = 0; i < cols; i++) {
     cudaFree(likesMatrix[i]);
   }
+  cudaFree(likesMatrix);
 }
 
 #endif

@@ -12,6 +12,15 @@ void printArray(float *arr, int n=3) {
   std::cout << std::endl;
 }
 
+// TODO: I need a template for this
+void printArrayd(double *arr, int n=3) {
+  /* Handy function to print arrays. */
+  for (int i = 0; i < n; i++) {
+    std::cout << arr[i] << ", ";
+  }
+  std::cout << std::endl;
+}
+
 
 void checkArrays(float *gridX, float *gridY, float *gridZ)
 {
@@ -39,19 +48,19 @@ void checkArrays(float *gridX, float *gridY, float *gridZ)
 }
 
 
-void reshapeArray(float *flatArray, float **output, int m, int n) {
+void reshapeArray(float *flatArray, double **output, int m, int n) {
   for (int i = 0; i < n; ++i) {
     for (int j = 0; j < m; ++j) {
       output[i][j] = flatArray[i * m + j];
     }
   }
 
-  for (int i = 0; i < n; ++i) {
-    for (int j = 0; j < m; ++j) {
-      std::cout << output[i][j] << ' ';
-    }
-    std::cout << '\n';
-  }
+  // for (int i = 0; i < n; ++i) {
+  //   for (int j = 0; j < m; ++j) {
+  //     std::cout << output[i][j] << ' ';
+  //   }
+  //   std::cout << '\n';
+  // }
 }
 
 #endif

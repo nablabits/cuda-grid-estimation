@@ -112,10 +112,14 @@ __device__ float normalPdf(float x, float mu, float sigma) {
 __global__ void computeLikesKernel(float *likes, float *gridX, float *gridY,
                                    float *gridZ, int gridSize)
 {
-  /* Compute the likelihood function on the device. */
+  /* Compute the densities on the device.
 
-  // at this point we have three vectors that represent our 3d grid, so we just
-  // need to iterate over the arrays.
+  At this point we have three vectors that represent our 3d grid, so we just
+  need to iterate over the arrays to get the densities for each pair of mu,
+  sigma, over the observations (x).
+  */
+
+
   int i = blockIdx.x * blockDim.x + threadIdx.x;
 
   if (i < gridSize) {
@@ -127,7 +131,7 @@ __global__ void computeLikesKernel(float *likes, float *gridX, float *gridY,
 }
 
 
-__global__ void computePosteriorKernel(float *posterior, float **likes, int rows)
+__global__ void computePosteriorKernel(double *posterior, double **likes, int rows, int cols)
 {
   /* Compute the posterior function on the device.
 
@@ -144,14 +148,30 @@ __global__ void computePosteriorKernel(float *posterior, float **likes, int rows
                   |________________________|
                                |
                             3628800
-  In each loop, group the elements in the array in pairs and compute their
-  product so the max number of iterations will be log2(N)
+  The simplest example is: in each iteration, group the elements in the array in
+  pairs and compute their product so the max number of iterations will be
+  log2(N).
+
+  However, the final algorithm is a bit more elaborated as we are passing a
+  matrix of 10201x50 elements (101*101x50) and the product is computed over rows
+  which are the densities for each of the 50 observations.
+
+       row 0              row 1
+  --------------    ----------------
+  1   2   3    4    5    6    7    8
+  |___|   |____|    |____|    |____|
+    |        |        |          |
+    2       12        30        56
+    |________|        |__________|
+        |                   |
+        24               1680
+      output[0]         output[1]
   */
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
   // Use a parallel reduction to calculate the product
   for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
-      if (idx < stride && idx + stride < 5) {
+      if (idx < stride && idx + stride < cols) {
         for (int i = 0; i < rows; i++) {
           likes[i][idx] *= likes[i][idx + stride];
         }
