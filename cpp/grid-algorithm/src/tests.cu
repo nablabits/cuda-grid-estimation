@@ -102,7 +102,7 @@ TEST(CUDATest, GenerateGrids) {
   cudaFree(gridZ);
 }
 
-TEST(CUDATest, ComputeLikes) {
+TEST(CUDATest, ComputeDensities) {
   int gridSize = 3;
   float *vecX, *vecY, *vecZ, *likes;
 
@@ -115,7 +115,7 @@ TEST(CUDATest, ComputeLikes) {
   linspaceCuda(vecY, gridSize, 1.0f, 3.0f);  // [1, 2, 3]
   linspaceCuda(vecZ, gridSize, 20.0f, 21.0f);  // [20, 20.5, 21]
 
-  computeLikesCuda(likes, vecX, vecY, vecZ, gridSize);
+  computeDensitiesCuda(likes, vecX, vecY, vecZ, gridSize);
 
   EXPECT_NEAR(likes[0], 0.39894228, 1e-5);
   EXPECT_NEAR(likes[1], 0.19333406, 1e-5);

@@ -30,6 +30,73 @@ compute-sanintizer ./bin/grid
 ./bin/grid
 */
 
+/********************
+* Wrapper Functions *
+********************/
+
+void computeDensitiesWrapper(float *vecX, float *vecY, float *vecZ, float *output,
+                         int startX, int endX, int startY, int endY,
+                         int vecXYSize, int vecZSize)
+{
+  /*
+  Wrap the operations needed to compute the densities of the likelihood function.
+  */
+
+  /* It seems that we are reinventing the wheel a bit as we could use the
+  cuTENSOR library. This, however, has a steeeeep learning curve 😕
+  */
+
+  float *gridX, *gridY, *gridZ;
+  int gridSize = vecXYSize * vecXYSize * vecZSize;
+  cudaMallocManaged(&gridX, gridSize * sizeof(float));
+  cudaMallocManaged(&gridY, gridSize * sizeof(float));
+  cudaMallocManaged(&gridZ, gridSize * sizeof(float));
+
+  linspaceCuda(vecX, vecXYSize, startX, endX);
+  linspaceCuda(vecY, vecXYSize, startY, endY);
+
+  create3dGridCuda(
+    vecX, vecY, vecZ, gridX, gridY, gridZ, vecXYSize, vecZSize
+  );
+
+  checkArrays(gridX, gridY, gridZ);
+
+  computeDensitiesCuda(output, gridX, gridY, gridZ, gridSize);
+
+  cudaFree(gridX);
+  cudaFree(gridY);
+  cudaFree(gridZ);
+}
+
+void computeLikesWrapper(float *densities, double *likes, int densitiesSize, int likesSize)
+{
+  /*
+  Wrap the operations needed to compute the likelihood function.
+  */
+
+  double **likesMatrix;
+  int rows = likesSize;  // 101x101 rows
+  int cols = densitiesSize / likesSize;  // of 50 elements each
+
+  if (densitiesSize != rows * cols) {
+    printf("ERROR: likesSize != rows * cols\n");
+    return;
+  }
+
+  cudaMallocManaged(&likesMatrix, rows * sizeof(double*));
+  for (int i = 0; i < rows; i++) {
+    cudaMallocManaged(&likesMatrix[i], cols * sizeof(double));
+  }
+
+  reshapeArray(densities, likesMatrix, cols, rows);
+  computeLikesCuda(likes, likesMatrix, densitiesSize, rows, cols);
+
+  for (int i = 0; i < cols; i++) {
+    cudaFree(likesMatrix[i]);
+  }
+  cudaFree(likesMatrix);
+}
+
 
 int main(void)
 {
@@ -88,24 +155,37 @@ int main(void)
   const float startSigma = 1.0f;
   const float endSigma = 3.0f;
 
-  float *vectorMu, *vectorSigma, *likes;
+  float *vectorMu, *vectorSigma, *densities;
 
   CUDA_CALL(cudaMallocManaged(&vectorMu, vecSize * sizeof(float)));
   CUDA_CALL(cudaMallocManaged(&vectorSigma, vecSize * sizeof(float)));
-  CUDA_CALL(cudaMallocManaged(&likes, gridSize * sizeof(float)));
-  CUDA_CALL(cudaMemset(likes, 0, gridSize * sizeof(int)));
+  CUDA_CALL(cudaMallocManaged(&densities, gridSize * sizeof(float)));
+  CUDA_CALL(cudaMemset(densities, 0, gridSize * sizeof(int)));
 
-  computeLikesWrapper(vectorMu, vectorSigma, observations, likes,
-                      startMu, endMu, startSigma, endSigma, vecSize, rvsSize);
+  /*************************
+  * Compute the Likelihood *
+  *************************/
 
+  /*
+  Computing the likelihood involves two steps: First we compute the densities
+  over the observations for each pair of mu, sigma. Then, we take the product
+  over those densities as they can be thought as a joint probability.
 
-  /************************
-  * Compute the posterior *
-  ************************/
-  double *posterior;
-  const int posteriorSize = vecSize * vecSize;
-  CUDA_CALL(cudaMallocManaged(&posterior, posteriorSize * sizeof(double)));
-  computePosteriorWrapper(likes, posterior, gridSize, posteriorSize);
+  mus       [   1,    1,    1,    1, ...]
+  sigmas    [   4,    4,    5,    5, ...]
+  obs       [   1,    2,    1,    2, ...]
+  densities [.099, .096, .079, .078, ...]
+  likes     [  0.0096,      .0062,   ...]
+  */
+
+  computeDensitiesWrapper(vectorMu, vectorSigma, observations, densities,
+                          startMu, endMu, startSigma, endSigma, vecSize,
+                          rvsSize);
+
+  double *likes;
+  const int likesSize = vecSize * vecSize;
+  CUDA_CALL(cudaMallocManaged(&likes, likesSize * sizeof(double)));
+  computeLikesWrapper(densities, likes, gridSize, likesSize);
 
 
   /**********
@@ -115,8 +195,8 @@ int main(void)
   CUDA_CALL(cudaFree(observations));
   CUDA_CALL(cudaFree(vectorMu));
   CUDA_CALL(cudaFree(vectorSigma));
+  CUDA_CALL(cudaFree(densities));
   CUDA_CALL(cudaFree(likes));
-  CUDA_CALL(cudaFree(posterior));
 
   return 0;
 }

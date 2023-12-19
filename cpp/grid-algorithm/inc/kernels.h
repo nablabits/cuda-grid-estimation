@@ -109,7 +109,7 @@ __device__ float normalPdf(float x, float mu, float sigma) {
   return exp(-0.5f * pow((x - mu) / sigma, 2.0f)) / (sigma * sqrt(2.0f * M_PI));
 }
 
-__global__ void computeLikesKernel(float *likes, float *gridX, float *gridY,
+__global__ void computeDensitiesKernel(float *likes, float *gridX, float *gridY,
                                    float *gridZ, int gridSize)
 {
   /* Compute the densities on the device.
@@ -131,9 +131,9 @@ __global__ void computeLikesKernel(float *likes, float *gridX, float *gridY,
 }
 
 
-__global__ void computePosteriorKernel(double *posterior, double **likes, int rows, int cols)
+__global__ void computeLikesKernel(double *likes, double **likesMatrix, int rows, int cols)
 {
-  /* Compute the posterior function on the device.
+  /* Compute the likelihoods function on the device.
 
   1   2   3    4    5    6    7    8    9    10
   |___|   |____|    |____|    |____|    |_____|
@@ -173,7 +173,7 @@ __global__ void computePosteriorKernel(double *posterior, double **likes, int ro
   for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
       if (idx < stride && idx + stride < cols) {
         for (int i = 0; i < rows; i++) {
-          likes[i][idx] *= likes[i][idx + stride];
+          likesMatrix[i][idx] *= likesMatrix[i][idx + stride];
         }
       }
       __syncthreads();
@@ -182,7 +182,7 @@ __global__ void computePosteriorKernel(double *posterior, double **likes, int ro
   // Store the result in the outcome
   if (idx == 0) {
     for (int i = 0; i < rows; i++) {
-      posterior[i] = likes[i][0];
+      likes[i] = likesMatrix[i][0];
     }
   }
 }
