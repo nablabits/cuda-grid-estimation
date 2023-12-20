@@ -62,6 +62,7 @@ TEST(CUDATest, Linspaces) {
   cudaFree(vecX);
 }
 
+
 TEST(CUDATest, GenerateGrids) {
   // SetUp
   const int vecXYSize = 3;
@@ -102,6 +103,7 @@ TEST(CUDATest, GenerateGrids) {
   cudaFree(gridZ);
 }
 
+
 TEST(CUDATest, ComputeDensities) {
   int gridSize = 3;
   float *vecX, *vecY, *vecZ, *likes;
@@ -129,7 +131,63 @@ TEST(CUDATest, ComputeDensities) {
 }
 
 
+TEST(CUDATest, ReshapeArray) {
+  float *array = new float[10] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+  int rows = 2;
+  int cols = 5;
+  double **output = new double*[rows];
+  for (int i = 0; i < rows; i++) {
+    output[i] = new double[cols];
+  }
+  reshapeArray(array, output, cols, rows);
+  int expected[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+  for (int i = 0; i < rows; i++) {
+    for (int j = 0; j < cols; j++) {
+      EXPECT_EQ(output[i][j], expected[j + i * cols]);
+    }
+  }
 
+  // TearDown
+  for (int i = 0; i < rows; i++) {
+    delete[] output[i];
+  }
+  delete[] output;
+  delete[] array;
+}
+
+
+TEST(CUDATest, ComputeLikes) {
+  float *densities;
+  double *likes;
+  double **likesMatrix;
+
+  int rows = 2;
+  int cols = 5;
+
+  cudaMallocManaged(&densities, rows * cols * sizeof(float));
+  cudaMallocManaged(&likes, rows * sizeof(float));
+  cudaMallocManaged(&likesMatrix, rows * sizeof(double*));
+  for (int i = 0; i < rows; i++) {
+    cudaMallocManaged(&likesMatrix[i], cols * sizeof(double));
+  }
+
+  linspaceCuda(densities, rows * cols, 1.0f, 10.0f);
+
+  reshapeArray(densities, likesMatrix, cols, rows);
+  computeLikesCuda(likes, likesMatrix, rows, cols);
+
+  EXPECT_EQ(likes[0], 120);  // 1*2*3*4*5
+  EXPECT_EQ(likes[1], 30240);  // 6*7*8*9*10
+
+  // TearDown
+  for (int i = 0; i < rows; i++) {
+    cudaFree(likesMatrix[i]);
+  }
+  cudaFree(likesMatrix);
+  cudaFree(densities);
+  cudaFree(likes);
+
+}
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);

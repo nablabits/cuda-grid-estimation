@@ -87,12 +87,11 @@ void computeDensitiesCuda(float *densities, float *gridX, float *gridY,
 }
 
 
-void computeLikesCuda(double *likes, double **likesMatrix,
-                      int densitiesSize, int rows, int cols)
+void computeLikesCuda(double *likes, double **likesMatrix, int rows, int cols)
 {
   /* Define the configuration of the computeLikesKernel. */
   dim3 threadsPerBlock(256);
-  dim3 numBlocks((densitiesSize + threadsPerBlock.x - 1) / threadsPerBlock.x);
+  dim3 numBlocks((rows * cols + threadsPerBlock.x - 1) / threadsPerBlock.x);
 
   computeLikesKernel<<<numBlocks, threadsPerBlock>>>(likes, likesMatrix, rows, cols);
 

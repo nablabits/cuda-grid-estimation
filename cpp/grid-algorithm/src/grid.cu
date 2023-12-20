@@ -89,7 +89,7 @@ void computeLikesWrapper(float *densities, double *likes, int densitiesSize, int
   }
 
   reshapeArray(densities, likesMatrix, cols, rows);
-  computeLikesCuda(likes, likesMatrix, densitiesSize, rows, cols);
+  computeLikesCuda(likes, likesMatrix, rows, cols);
 
   for (int i = 0; i < cols; i++) {
     cudaFree(likesMatrix[i]);
