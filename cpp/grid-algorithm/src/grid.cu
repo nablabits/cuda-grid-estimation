@@ -171,11 +171,11 @@ int main(void)
   over the observations for each pair of mu, sigma. Then, we take the product
   over those densities as they can be thought as a joint probability.
 
-  mus       [   1,    1,    1,    1, ...]
-  sigmas    [   4,    4,    5,    5, ...]
-  obs       [   1,    2,    1,    2, ...]
-  densities [.099, .096, .079, .078, ...]
-  likes     [  0.0096,      .0062,   ...]
+  mus       [   1,    1,    1,    1, ...]  101
+  sigmas    [   4,    4,    5,    5, ...]  101
+  obs       [   1,    2,    1,    2, ...]  50
+  densities [.099, .096, .079, .078, ...]  101x101x50
+  likes     [  0.0096,      .0062,   ...]  101x101
   */
 
   computeDensitiesWrapper(vectorMu, vectorSigma, observations, densities,
@@ -187,11 +187,22 @@ int main(void)
   CUDA_CALL(cudaMallocManaged(&likes, likesSize * sizeof(double)));
   computeLikesWrapper(densities, likes, gridSize, likesSize);
 
+  /*************************
+   * Compute the posterior *
+  *************************/
+
+  // In principle we will asume a flat prior, which has no impact on the
+  // likelihoods. But we still need to normalize them so they will add up to 1.
+  double *posterior;
+  CUDA_CALL(cudaMallocManaged(&posterior, likesSize * sizeof(double)));
+  computePosteriorCuda(likes, posterior, likesSize);
+
 
   /**********
   * Cleanup *
   **********/
 
+  // TODO: maybe we can free the elements as soon as we dont need them.
   CUDA_CALL(cudaFree(observations));
   CUDA_CALL(cudaFree(vectorMu));
   CUDA_CALL(cudaFree(vectorSigma));

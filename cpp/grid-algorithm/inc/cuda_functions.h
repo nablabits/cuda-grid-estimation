@@ -95,11 +95,41 @@ void computeLikesCuda(double *likes, double **likesMatrix, int rows, int cols)
 
   computeLikesKernel<<<numBlocks, threadsPerBlock>>>(likes, likesMatrix, rows, cols);
 
-  // Always syncronize before printing data.
+  // Always synchronize before printing data.
   cudaDeviceSynchronize();
 
   // TODO: remove these guys once we are done with the full algorithm
   printf("------->\n");
   printArrayd(likes, 10);
+}
+
+void computePosteriorCuda(double *likes, double *posterior, int likesSize)
+{
+
+  double *sum;
+  cudaMallocManaged(&sum, sizeof(double));
+
+  double *likesCopy = new double;
+  for (int i = 0; i < likesSize; i++) {
+    *likesCopy += likes[i];
+  }
+
+  printf("this is likes copy: %e\n", *likesCopy);
+
+  int threadsPerBlock = 256;  // the number of threads per block
+  int numBlocks = (likesSize + threadsPerBlock - 1) / threadsPerBlock;  // effectively, 4096 blocks
+  printf("kernel size: %dx%d\n", numBlocks, threadsPerBlock);
+
+  computePosteriorKernel<<<numBlocks, threadsPerBlock>>>(likes, sum, likesSize);
+
+  cudaDeviceSynchronize();
+
+  printf("this is the sum: %e\n", *sum);
+  printf("this is likes[0]: %e\n", likes[0]);
+
+  // we can also try the thrust library
+
+  delete [] likesCopy;
+  cudaFree(sum);
 }
 #endif
