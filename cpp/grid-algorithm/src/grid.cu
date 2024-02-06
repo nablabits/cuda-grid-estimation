@@ -1,5 +1,7 @@
 #include <iostream>
 
+#include <thrust/device_vector.h>
+
 #include "../inc/cuda_functions.h"
 
 
@@ -193,9 +195,15 @@ int main(void)
 
   // In principle we will asume a flat prior, which has no impact on the
   // likelihoods. But we still need to normalize them so they will add up to 1.
-  double *posterior;
-  CUDA_CALL(cudaMallocManaged(&posterior, likesSize * sizeof(double)));
-  computePosteriorCuda(likes, posterior, likesSize);
+
+  // We start by building thrust vectors out of the likes array so we can
+  // easily and efficiently compute the sum of the array. The first bit is
+  // taking the initial value of `likes` and then copying over the rest of the
+  // array up to `likesSize` with `likes + likesSize`
+  // Then, we just create another vector that will hold the posteriors.
+  thrust::device_vector<double> likesV(likes, likes + likesSize);
+  thrust::device_vector<double> posteriorV(likesSize);
+  computePosteriorCuda(likesV, posteriorV, likesSize);
 
 
   /**********

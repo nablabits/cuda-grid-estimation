@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include <thrust/device_vector.h>
 
 #ifndef UTILS_H
 #define UTILS_H
@@ -49,6 +50,7 @@ void checkArrays(float *gridX, float *gridY, float *gridZ)
 
 
 void reshapeArray(float *flatArray, double **output, int m, int n) {
+  // TODO: this needs a docstring
   for (int i = 0; i < n; ++i) {
     for (int j = 0; j < m; ++j) {
       output[i][j] = flatArray[i * m + j];
@@ -61,6 +63,31 @@ void reshapeArray(float *flatArray, double **output, int m, int n) {
   //   }
   //   std::cout << '\n';
   // }
+}
+
+
+struct saxpy_functor
+{
+  const double a;  // class attribute
+
+  saxpy_functor(double _a) : a(_a) {}  // Initialise
+
+  // operator() is a special member of `struct` that allows this functor to be
+  // used as a function. Here we are sort of overriding this member.
+  __host__ __device__
+      double operator()(const double& x, const double& y) const {
+          return x * a;
+      }
+};
+
+void saxpy_fast(
+  double A, thrust::device_vector<double>& X, thrust::device_vector<double>& Y
+  )
+{
+  // https://docs.nvidia.com/cuda/thrust/index.html#transformations
+  // https://chat.openai.com/c/ecd2c19e-4e91-44fc-9ff8-bbf1dca99eff
+  // Y <- A * X + Y.
+  thrust::transform(X.begin(), X.end(), Y.begin(), Y.begin(), saxpy_functor(A));
 }
 
 #endif

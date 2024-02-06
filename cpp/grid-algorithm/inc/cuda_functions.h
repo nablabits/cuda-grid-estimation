@@ -4,6 +4,8 @@
 #include "../inc/kernels.h"
 #include "../inc/utils.h"
 
+#include <thrust/device_vector.h>
+
 #ifndef CUDA_FUNCTIONS_H
 #define CUDA_FUNCTIONS_H
 
@@ -103,33 +105,25 @@ void computeLikesCuda(double *likes, double **likesMatrix, int rows, int cols)
   printArrayd(likes, 10);
 }
 
-void computePosteriorCuda(double *likes, double *posterior, int likesSize)
+
+void computePosteriorCuda(
+  thrust::device_vector<double>& likesV,
+  thrust::device_vector<double>& posteriorV,
+  int likesSize
+)
 {
+  /* Compute the posterior using thrust library
 
-  double *sum;
-  cudaMallocManaged(&sum, sizeof(double));
+  In the posterior we just need to normalize the likes vector as we are assuming
+  a flat prior. Had we chosen some custom prior we would have needed to first
+  compute joint prob between the prior and the likes before normalization as
+  usual with Bayes theorem.
+  */
 
-  double *likesCopy = new double;
-  for (int i = 0; i < likesSize; i++) {
-    *likesCopy += likes[i];
-  }
+  double sum = thrust::reduce(likesV.begin(), likesV.end());
 
-  printf("this is likes copy: %e\n", *likesCopy);
-
-  int threadsPerBlock = 256;  // the number of threads per block
-  int numBlocks = (likesSize + threadsPerBlock - 1) / threadsPerBlock;  // effectively, 4096 blocks
-  printf("kernel size: %dx%d\n", numBlocks, threadsPerBlock);
-
-  computePosteriorKernel<<<numBlocks, threadsPerBlock>>>(likes, sum, likesSize);
-
-  cudaDeviceSynchronize();
-
-  printf("this is the sum: %e\n", *sum);
-  printf("this is likes[0]: %e\n", likes[0]);
-
-  // we can also try the thrust library
-
-  delete [] likesCopy;
-  cudaFree(sum);
+  // Now that we have the sum we can saxpy_fast posteriorV.
+  saxpy_fast(1 / sum, likesV, posteriorV);
 }
+
 #endif

@@ -2,6 +2,8 @@
 #include <cuda_runtime.h>
 #include <curand.h>
 #include <curand_kernel.h>
+#include <thrust/device_vector.h>
+#include <thrust/sequence.h>
 
 #include "../inc/cuda_functions.h"
 
@@ -188,6 +190,22 @@ TEST(CUDATest, ComputeLikes) {
   cudaFree(likes);
 
 }
+
+TEST(CUDATest, ComputePosterior) {
+  int size = 3;
+  thrust::device_vector<double> likesV(size);
+  thrust::device_vector<double> posteriorV(size);
+
+  // Populate the likes vector
+  thrust::sequence(likesV.begin(), likesV.end(), 1.0);  // 1.0, 2.0, 3.0
+
+  computePosteriorCuda(likesV, posteriorV, size);
+
+  EXPECT_NEAR(posteriorV[0], 0.166667, 1e-5);  // 1/6
+  EXPECT_NEAR(posteriorV[1], 0.333333, 1e-5);  // 2/6
+  EXPECT_EQ(posteriorV[2], 0.5);  // 3/6
+}
+
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);

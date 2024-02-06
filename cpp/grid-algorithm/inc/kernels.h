@@ -187,50 +187,5 @@ __global__ void computeLikesKernel(double *likes, double **likesMatrix, int rows
   }
 }
 
-__global__ void computePosteriorKernel(double *likes, double *sum, int likesSize)
-{
-  // CUDA webinar approach
-  // int tid = threadIdx.x;
-  // int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  // if (idx < likesSize) {
-  //   for (int s=1; s < blockDim.x; s *= 2) {
-  //     if (tid % (2*s) == 0) {
-  //       likes[tid] += likes[tid + s];
-  //     }
-  //     __syncthreads();
-  //   }
-  // }
-  // if (idx == 0) {
-  //     printf("Sum: %e\n", likes[0]);
-  //     *sum = likes[0];
-  //   }
-
-
-  // chatGPT approach
-  int idx = blockIdx.x * blockDim.x + threadIdx.x;
-  for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
-    if (idx < stride && idx + stride < likesSize) {
-      likes[idx] += likes[idx + stride];
-    }
-    __syncthreads();
-  }
-  if (idx == 0) {
-    *sum = likes[0];
-  }
-
-  // Bard approach, this works for a 1x1 kernel size
-  // int tid = blockIdx.x * blockDim.x + threadIdx.x;
-  // int stride = blockDim.x * gridDim.x;
-
-  // for (int i = tid; i < 101*101; i += stride) {
-  //     *sum += likes[i];
-  //     __syncthreads();
-  // }
-
-
-
-
-  // Now that we have the sum, we can divide recursively the array by it.
-}
 
 #endif
