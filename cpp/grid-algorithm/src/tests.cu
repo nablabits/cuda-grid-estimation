@@ -141,7 +141,7 @@ TEST(CUDATest, ReshapeArray) {
   for (int i = 0; i < rows; i++) {
     output[i] = new double[cols];
   }
-  reshapeArray(array, output, cols, rows);
+  reshapeArray<float, double>(array, output, cols, rows);
   int expected[10] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
   for (int i = 0; i < rows; i++) {
     for (int j = 0; j < cols; j++) {
@@ -175,7 +175,7 @@ TEST(CUDATest, ComputeLikes) {
 
   linspaceCuda(densities, rows * cols, 1.0f, 10.0f);
 
-  reshapeArray(densities, likesMatrix, cols, rows);
+  reshapeArray<float, double>(densities, likesMatrix, cols, rows);
   computeLikesCuda(likes, likesMatrix, rows, cols);
 
   EXPECT_EQ(likes[0], 120);  // 1*2*3*4*5

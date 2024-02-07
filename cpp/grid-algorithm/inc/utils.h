@@ -48,21 +48,15 @@ void checkArrays(float *gridX, float *gridY, float *gridZ)
 
 }
 
-
-void reshapeArray(float *flatArray, double **output, int m, int n) {
-  // TODO: this needs a docstring
+template <class T, class V>
+void reshapeArray(T *flatArray, V **output, int m, int n)
+{
+  // Convert a flat vector into a m x n matrix
   for (int i = 0; i < n; ++i) {
     for (int j = 0; j < m; ++j) {
       output[i][j] = flatArray[i * m + j];
     }
   }
-
-  // for (int i = 0; i < n; ++i) {
-  //   for (int j = 0; j < m; ++j) {
-  //     std::cout << output[i][j] << ' ';
-  //   }
-  //   std::cout << '\n';
-  // }
 }
 
 

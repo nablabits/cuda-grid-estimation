@@ -90,7 +90,7 @@ void computeLikesWrapper(float *densities, double *likes, int densitiesSize, int
     cudaMallocManaged(&likesMatrix[i], cols * sizeof(double));
   }
 
-  reshapeArray(densities, likesMatrix, cols, rows);
+  reshapeArray<float, double>(densities, likesMatrix, cols, rows);
   computeLikesCuda(likes, likesMatrix, rows, cols);
 
   for (int i = 0; i < cols; i++) {
