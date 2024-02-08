@@ -3,6 +3,7 @@
 #include <thrust/device_vector.h>
 
 #include "../inc/cuda_functions.h"
+#include "../inc/kernels.h"
 
 
 // this is a macro
@@ -102,6 +103,41 @@ void computeLikesWrapper(float *densities, double *likes, int densitiesSize, int
 
 int main(void)
 {
+
+  // quick test of how the sum over axis will work
+  float *array;
+  int size = 9;
+  cudaMallocManaged(&array, size * sizeof(float));
+  linspaceCuda(array, size, 1, 9);
+  float **matrix;
+  float *marginal;
+  cudaMallocManaged(&marginal, 3 * sizeof(float));
+  int rows = 3;
+  int cols = 3;
+  cudaMallocManaged(&matrix, rows * sizeof(double*));
+  for (int i = 0; i < rows; i++) {
+    cudaMallocManaged(&matrix[i], cols * sizeof(double));
+  }
+
+  reshapeArray<float, float>(array, matrix, cols, rows);
+
+  dim3 threadsPerBlock(256);
+  dim3 numBlocks((size + threadsPerBlock.x - 1) / threadsPerBlock.x);
+
+  int axis = 1;
+  marginalize<<<numBlocks, threadsPerBlock>>>(marginal, matrix, rows, cols, axis);
+
+  // Always synchronize before printing data.
+  cudaDeviceSynchronize();
+  printArray(marginal, 3);
+
+  cudaFree(array);
+  for (int i = 0; i < cols; i++) {
+    cudaFree(matrix[i]);
+  }
+  cudaFree(matrix);
+  cudaFree(marginal);
+
   /*******************************
   * Generate the random variates *
   *******************************/

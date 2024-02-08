@@ -109,6 +109,7 @@ __device__ float normalPdf(float x, float mu, float sigma) {
   return exp(-0.5f * pow((x - mu) / sigma, 2.0f)) / (sigma * sqrt(2.0f * M_PI));
 }
 
+
 __global__ void computeDensitiesKernel(float *likes, float *gridX, float *gridY,
                                    float *gridZ, int gridSize)
 {
@@ -187,5 +188,45 @@ __global__ void computeLikesKernel(double *likes, double **likesMatrix, int rows
   }
 }
 
+
+// TODO: This function seems to be a more general approach of above, so a
+// refactor of both can be done
+__global__ void marginalize(float *marginal, float **posterior, int rows, int cols, int axis)
+{
+
+  int idx = blockIdx.x * blockDim.x + threadIdx.x;
+
+  int outerRef, innerRef;
+  if (axis == 0) {
+    outerRef = rows;
+    innerRef = cols;
+  } else {
+    outerRef = cols;
+    innerRef = rows;
+  }
+
+  for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
+    if (idx < stride && idx + stride < outerRef) {
+      for (int i = 0; i < innerRef; i++) {
+        if (axis == 0) {
+          posterior[idx][i] += posterior[idx + stride][i];
+        } else {
+          posterior[i][idx] += posterior[i][idx + stride];
+        }
+      }
+    }
+    __syncthreads();
+  }
+
+  if (idx == 0) {
+    for (int i = 0; i < rows; i++) {
+      if (axis == 0) {
+        marginal[i] = posterior[0][i];
+      }else{
+        marginal[i] = posterior[i][0];
+      }
+    }
+  }
+}
 
 #endif
