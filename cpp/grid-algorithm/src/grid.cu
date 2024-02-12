@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
 
 #include "../inc/cuda_functions.h"
 #include "../inc/kernels.h"
@@ -71,6 +72,7 @@ void computeDensitiesWrapper(float *vecX, float *vecY, float *vecZ, float *outpu
   cudaFree(gridZ);
 }
 
+
 void computeLikesWrapper(float *densities, double *likes, int densitiesSize, int likesSize)
 {
   /*
@@ -101,45 +103,86 @@ void computeLikesWrapper(float *densities, double *likes, int densitiesSize, int
 }
 
 
-int main(void)
+void computeExpectationsWrapper(
+  thrust::device_vector<double> &posterior, int likesSize, int expectedMu, int expectedSigma
+)
 {
+  /*
+  Wrap the operations needed to extract the marginals from the grid and compute
+  their expectations
 
-  // quick test of how the sum over axis will work
-  float *array;
-  int size = 9;
-  cudaMallocManaged(&array, size * sizeof(float));
-  linspaceCuda(array, size, 1, 9);
-  float **matrix;
-  float *marginal;
-  cudaMallocManaged(&marginal, 3 * sizeof(float));
-  int rows = 3;
-  int cols = 3;
-  cudaMallocManaged(&matrix, rows * sizeof(double*));
+  We have a thrust vector of 10200 elements and we need to convert it to a
+  matrix of 101x101 so we can compute the sum over rows (marginal of mu) and the
+  sum over columns (marginal of sigma).
+
+  Once we have the marginals we can compute the expected value for each array
+  */
+  std::cout << "vector first element: " << posterior[0] << std::endl;
+
+  // We start by creating the matrices for the reduction. We need to create two
+  // because `marginalize` will modify them to perform the reduction making them
+  // not reusable.
+  double **posteriorMatrixMu, **posteriorMatrixSigma;
+  int rows = 101;
+  int cols = 101;
+  cudaMallocManaged(&posteriorMatrixMu, rows * sizeof(double*));
   for (int i = 0; i < rows; i++) {
-    cudaMallocManaged(&matrix[i], cols * sizeof(double));
+    cudaMallocManaged(&posteriorMatrixMu[i], cols * sizeof(double));
   }
 
-  reshapeArray<float, float>(array, matrix, cols, rows);
+  cudaMallocManaged(&posteriorMatrixSigma, rows * sizeof(double*));
+  for (int i = 0; i < rows; i++) {
+    cudaMallocManaged(&posteriorMatrixSigma[i], cols * sizeof(double));
+  }
+
+  // Now we reshape the posterior vector. Wemake a host_vector which is more
+  // flexible to work with
+  thrust::host_vector<double> h_posterior = posterior;
+
+  double *posteriorPtr = h_posterior.data();
+  reshapeArray<double, double>(posteriorPtr, posteriorMatrixMu, cols, rows);
+  reshapeArray<double, double>(posteriorPtr, posteriorMatrixSigma, cols, rows);
+
+  std::cout << "Matrix first element: " << posteriorMatrixMu[0][0] << std::endl;
+
+  // Define the arrays we will use to store the marginals.
+  double *marginalMu, *marginalSigma;
+  cudaMallocManaged(&marginalMu, cols * sizeof(double));
+  cudaMallocManaged(&marginalSigma, rows * sizeof(double));
 
   dim3 threadsPerBlock(256);
-  dim3 numBlocks((size + threadsPerBlock.x - 1) / threadsPerBlock.x);
+  dim3 numBlocks((rows * cols + threadsPerBlock.x - 1) / threadsPerBlock.x);
 
-  int axis = 1;
-  marginalize<<<numBlocks, threadsPerBlock>>>(marginal, matrix, rows, cols, axis);
+  marginalize<<<numBlocks, threadsPerBlock>>>(
+    marginalSigma, posteriorMatrixSigma, rows, cols, 0
+  );
 
-  // Always synchronize before printing data.
   cudaDeviceSynchronize();
-  printArray(marginal, 3);
 
-  cudaFree(array);
+  marginalize<<<numBlocks, threadsPerBlock>>>(
+    marginalMu, posteriorMatrixMu, rows, cols, 1
+  );
+
+  cudaDeviceSynchronize();
+  printArrayd(marginalSigma, 5);  // 5.79e-16, 6.59e-15, 6.29e-14, 5.11e-13
+  printArrayd(marginalMu, 5);  // 2.52e-10, 4.42e-10, 7.73e-10
+
+  // Free up the memory
   for (int i = 0; i < cols; i++) {
-    cudaFree(matrix[i]);
+    cudaFree(posteriorMatrixMu[i]);
+    cudaFree(posteriorMatrixSigma[i]);
   }
-  cudaFree(matrix);
-  cudaFree(marginal);
+  cudaFree(posteriorMatrixMu);
+  cudaFree(posteriorMatrixSigma);
+  cudaFree(marginalMu);
+  cudaFree(marginalSigma);
+}
 
+
+int main(void)
+{
   /*******************************
-  * Generate the random variates *
+  * Generate the Random Variates *
   *******************************/
 
   /*
@@ -169,7 +212,7 @@ int main(void)
   printArray(observations, rvsSize);
 
   /*******************
-  * Create the grids *
+  * Create the Grids *
   *******************/
 
  /*
@@ -226,20 +269,45 @@ int main(void)
   computeLikesWrapper(densities, likes, gridSize, likesSize);
 
   /*************************
-   * Compute the posterior *
+   * Compute the Posterior *
   *************************/
 
-  // In principle we will asume a flat prior, which has no impact on the
-  // likelihoods. But we still need to normalize them so they will add up to 1.
+  /*
+  In principle we will asume a flat prior, which has no impact on the
+  likelihoods. But we still need to normalize them so they will add up to 1.
+  */
+
 
   // We start by building thrust vectors out of the likes array so we can
   // easily and efficiently compute the sum of the array. The first bit is
   // taking the initial value of `likes` and then copying over the rest of the
   // array up to `likesSize` with `likes + likesSize`
   // Then, we just create another vector that will hold the posteriors.
+
+  // TODO: it might be a good idea to use host vectors before and after
   thrust::device_vector<double> likesV(likes, likes + likesSize);
   thrust::device_vector<double> posteriorV(likesSize);
   computePosteriorCuda(likesV, posteriorV, likesSize);
+
+  /*************************
+   * Compute the Marginals *
+  *************************/
+
+  /*
+  Now that we have the posterior we can compute the marginals and with them, the
+  expectations for the parameters that hopefully will land closer to the values
+  we set to generate the variates.
+  We have a thrust vector of 10200 elements and we need to convert it to a
+  matrix of 101x101 so we can compute the sum over rows (marginal of mu) and the
+  sum over columns (marginal of sigma).
+
+  Once we have the marginals we can compute the expected value for each
+  finishing the program.
+  */
+
+  int expectedMu = 0;
+  int expectedSigma = 0;
+  computeExpectationsWrapper(posteriorV, likesSize, expectedMu, expectedSigma);
 
 
   /**********

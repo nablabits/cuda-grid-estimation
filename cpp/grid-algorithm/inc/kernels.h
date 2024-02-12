@@ -191,7 +191,8 @@ __global__ void computeLikesKernel(double *likes, double **likesMatrix, int rows
 
 // TODO: This function seems to be a more general approach of above, so a
 // refactor of both can be done
-__global__ void marginalize(float *marginal, float **posterior, int rows, int cols, int axis)
+__global__ void marginalize(double *marginal, double **posterior, int rows,
+                            int cols, int axis)
 {
 
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
