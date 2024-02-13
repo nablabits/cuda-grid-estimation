@@ -2,6 +2,9 @@
 
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
+#include <thrust/transform.h>
+#include <thrust/functional.h>
+#include <thrust/transform_reduce.h>
 
 #include "../inc/cuda_functions.h"
 #include "../inc/kernels.h"
@@ -103,9 +106,10 @@ void computeLikesWrapper(float *densities, double *likes, int densitiesSize, int
 }
 
 
-void computeExpectationsWrapper(
-  thrust::device_vector<double> &posterior, int likesSize, int expectedMu, int expectedSigma
-)
+void computeExpectationsWrapper(thrust::device_vector<double> &posterior,
+                                int likesSize, float *vectorMu,
+                                float *vectorSigma, double expectedMu,
+                                double expectedSigma)
 {
   /*
   Wrap the operations needed to extract the marginals from the grid and compute
@@ -150,6 +154,7 @@ void computeExpectationsWrapper(
   cudaMallocManaged(&marginalMu, cols * sizeof(double));
   cudaMallocManaged(&marginalSigma, rows * sizeof(double));
 
+  // TODO: This folk should live in cuda_functions.h
   dim3 threadsPerBlock(256);
   dim3 numBlocks((rows * cols + threadsPerBlock.x - 1) / threadsPerBlock.x);
 
@@ -164,8 +169,32 @@ void computeExpectationsWrapper(
   );
 
   cudaDeviceSynchronize();
-  printArrayd(marginalSigma, 5);  // 5.79e-16, 6.59e-15, 6.29e-14, 5.11e-13
-  printArrayd(marginalMu, 5);  // 2.52e-10, 4.42e-10, 7.73e-10
+  // printArrayd(marginalSigma, 5);  // 5.79e-16, 6.59e-15, 6.29e-14, 5.11e-13
+  // printArrayd(marginalMu, 5);  // 2.52e-10, 4.42e-10, 7.73e-10
+
+  // TODO: Continue here, compute the expectations of the marginals
+  thrust::device_vector<double> marginalMuDvc(
+    thrust::device_pointer_cast(marginalMu),
+    thrust::device_pointer_cast(marginalMu + 101)
+  );
+
+  thrust::device_vector<double> vectorMuDvc(
+    thrust::device_pointer_cast(vectorMu),
+    thrust::device_pointer_cast(vectorMu + 101)
+  );
+
+  // take the product between the marginal and the values and store back in the
+  // marginal.
+  thrust::multiplies<double> binary_op;
+  thrust::transform(marginalMuDvc.begin(), marginalMuDvc.end(),
+                    vectorMuDvc.begin(), marginalMuDvc.begin(), binary_op);
+
+  double kmu = thrust::reduce(marginalMuDvc.begin(), marginalMuDvc.end());
+
+  // double kexpectedMu = thrust::(marginalMuDvc.begin(), marginalMuDvc.end());
+
+  std::cout << "Expected mu: " << kmu << std::endl;
+
 
   // Free up the memory
   for (int i = 0; i < cols; i++) {
@@ -305,9 +334,11 @@ int main(void)
   finishing the program.
   */
 
-  int expectedMu = 0;
-  int expectedSigma = 0;
-  computeExpectationsWrapper(posteriorV, likesSize, expectedMu, expectedSigma);
+  double expectedMu = 0.0f;
+  double expectedSigma = 0.0f;
+  computeExpectationsWrapper(posteriorV, likesSize,
+                             vectorMu, vectorSigma, expectedMu, expectedSigma
+                             );
 
 
   /**********
