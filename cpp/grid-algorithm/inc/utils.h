@@ -59,6 +59,24 @@ void reshapeArray(T *flatArray, V **output, int m, int n)
   }
 }
 
+double** createMatrix(int rows, int cols)
+{
+  double **output;
+  cudaMallocManaged(&output, rows * sizeof(double*));
+  for (int i = 0; i < rows; i++) {
+    cudaMallocManaged(&output[i], cols * sizeof(double));
+  }
+
+  return output;
+}
+
+void freeMatrix(double** matrix, int rows)
+{
+  for (int i = 0; i < rows; i++) {
+    cudaFree(matrix[i]);
+  }
+  cudaFree(matrix);
+}
 
 struct saxpy_functor
 {

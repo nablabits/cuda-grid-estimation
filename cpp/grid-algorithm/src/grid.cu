@@ -126,18 +126,11 @@ void computeExpectationsWrapper(thrust::device_vector<double> &posterior,
   // We start by creating the matrices for the reduction. We need to create two
   // because `marginalize` will modify them to perform the reduction making them
   // not reusable.
-  double **posteriorMatrixMu, **posteriorMatrixSigma;
+
   int rows = 101;
   int cols = 101;
-  cudaMallocManaged(&posteriorMatrixMu, rows * sizeof(double*));
-  for (int i = 0; i < rows; i++) {
-    cudaMallocManaged(&posteriorMatrixMu[i], cols * sizeof(double));
-  }
-
-  cudaMallocManaged(&posteriorMatrixSigma, rows * sizeof(double*));
-  for (int i = 0; i < rows; i++) {
-    cudaMallocManaged(&posteriorMatrixSigma[i], cols * sizeof(double));
-  }
+  double **posteriorMatrixMu = createMatrix(rows, cols);
+  double **posteriorMatrixSigma = createMatrix(rows, cols);
 
   // Now we reshape the posterior vector. Wemake a host_vector which is more
   // flexible to work with
@@ -169,8 +162,8 @@ void computeExpectationsWrapper(thrust::device_vector<double> &posterior,
   );
 
   cudaDeviceSynchronize();
-  printArrayd(marginalSigma, 5);  // 5.79e-16, 6.59e-15, 6.29e-14, 5.11e-13
-  printArrayd(marginalMu, 5);  // 2.52e-10, 4.42e-10, 7.73e-10
+  printArrayd(marginalSigma, 5);
+  printArrayd(marginalMu, 5);
 
   double mu = computeExpectationsCuda(marginalMu, vectorMu, rows);
   double sigma = computeExpectationsCuda(marginalSigma, vectorSigma, rows);
@@ -179,12 +172,8 @@ void computeExpectationsWrapper(thrust::device_vector<double> &posterior,
   std::cout << "Inferred sigma: " << sigma << std::endl;
 
   // Free up the memory
-  for (int i = 0; i < cols; i++) {
-    cudaFree(posteriorMatrixMu[i]);
-    cudaFree(posteriorMatrixSigma[i]);
-  }
-  cudaFree(posteriorMatrixMu);
-  cudaFree(posteriorMatrixSigma);
+  freeMatrix(posteriorMatrixMu, rows);
+  freeMatrix(posteriorMatrixSigma, rows);
   cudaFree(marginalMu);
   cudaFree(marginalSigma);
 }
