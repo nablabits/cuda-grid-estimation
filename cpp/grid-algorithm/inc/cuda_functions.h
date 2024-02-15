@@ -143,7 +143,13 @@ void marginalizeCuda(
 
 double computeExpectationsCuda(double *marginal, float *vector, int size)
 {
+  /*
+  Compute the weighted average between an array of probabilities and an array
+  of values.
+  */
 
+  // Thrust vectors will make the whole operation a piece of cake, so let's
+  // create them.
   thrust::device_vector<double> marginalDvc(
     thrust::device_pointer_cast(marginal),
     thrust::device_pointer_cast(marginal + size)
@@ -160,6 +166,7 @@ double computeExpectationsCuda(double *marginal, float *vector, int size)
   thrust::transform(marginalDvc.begin(), marginalDvc.end(),
                     vectorDvc.begin(), marginalDvc.begin(), binary_op);
 
+  // Now reduce it.
   double expectation = thrust::reduce(marginalDvc.begin(), marginalDvc.end());
 
   return expectation;

@@ -108,8 +108,7 @@ void computeLikesWrapper(float *densities, double *likes, int densitiesSize, int
 
 void computeExpectationsWrapper(thrust::device_vector<double> &posterior,
                                 int likesSize, float *vectorMu,
-                                float *vectorSigma, double expectedMu,
-                                double expectedSigma)
+                                float *vectorSigma)
 {
   /*
   Wrap the operations needed to extract the marginals from the grid and compute
@@ -287,19 +286,8 @@ int main(void)
   Now that we have the posterior we can compute the marginals and with them, the
   expectations for the parameters that hopefully will land closer to the values
   we set to generate the variates.
-  We have a thrust vector of 10200 elements and we need to convert it to a
-  matrix of 101x101 so we can compute the sum over rows (marginal of mu) and the
-  sum over columns (marginal of sigma).
-
-  Once we have the marginals we can compute the expected value for each
-  finishing the program.
   */
-
-  double expectedMu = 0.0f;
-  double expectedSigma = 0.0f;
-  computeExpectationsWrapper(posteriorV, likesSize,
-                             vectorMu, vectorSigma, expectedMu, expectedSigma
-                             );
+  computeExpectationsWrapper(posteriorV, likesSize, vectorMu, vectorSigma);
 
 
   /**********
