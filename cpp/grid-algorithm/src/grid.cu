@@ -169,32 +169,14 @@ void computeExpectationsWrapper(thrust::device_vector<double> &posterior,
   );
 
   cudaDeviceSynchronize();
-  // printArrayd(marginalSigma, 5);  // 5.79e-16, 6.59e-15, 6.29e-14, 5.11e-13
-  // printArrayd(marginalMu, 5);  // 2.52e-10, 4.42e-10, 7.73e-10
+  printArrayd(marginalSigma, 5);  // 5.79e-16, 6.59e-15, 6.29e-14, 5.11e-13
+  printArrayd(marginalMu, 5);  // 2.52e-10, 4.42e-10, 7.73e-10
 
-  // TODO: Continue here, compute the expectations of the marginals
-  thrust::device_vector<double> marginalMuDvc(
-    thrust::device_pointer_cast(marginalMu),
-    thrust::device_pointer_cast(marginalMu + 101)
-  );
+  double mu = computeExpectationsCuda(marginalMu, vectorMu, rows);
+  double sigma = computeExpectationsCuda(marginalSigma, vectorSigma, rows);
 
-  thrust::device_vector<double> vectorMuDvc(
-    thrust::device_pointer_cast(vectorMu),
-    thrust::device_pointer_cast(vectorMu + 101)
-  );
-
-  // take the product between the marginal and the values and store back in the
-  // marginal.
-  thrust::multiplies<double> binary_op;
-  thrust::transform(marginalMuDvc.begin(), marginalMuDvc.end(),
-                    vectorMuDvc.begin(), marginalMuDvc.begin(), binary_op);
-
-  double kmu = thrust::reduce(marginalMuDvc.begin(), marginalMuDvc.end());
-
-  // double kexpectedMu = thrust::(marginalMuDvc.begin(), marginalMuDvc.end());
-
-  std::cout << "Expected mu: " << kmu << std::endl;
-
+  std::cout << "Inferred mu: " << mu << std::endl;
+  std::cout << "Inferred sigma: " << sigma << std::endl;
 
   // Free up the memory
   for (int i = 0; i < cols; i++) {

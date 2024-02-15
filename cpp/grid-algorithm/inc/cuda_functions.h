@@ -126,4 +126,28 @@ void computePosteriorCuda(
   saxpy_fast(1 / sum, likesV, posteriorV);
 }
 
+
+double computeExpectationsCuda(double *marginal, float *vector, int size)
+{
+
+  thrust::device_vector<double> marginalDvc(
+    thrust::device_pointer_cast(marginal),
+    thrust::device_pointer_cast(marginal + size)
+  );
+
+  thrust::device_vector<double> vectorDvc(
+    thrust::device_pointer_cast(vector),
+    thrust::device_pointer_cast(vector + size)
+  );
+
+  // take the product between the marginal and the values and store back in the
+  // marginal.
+  thrust::multiplies<double> binary_op;
+  thrust::transform(marginalDvc.begin(), marginalDvc.end(),
+                    vectorDvc.begin(), marginalDvc.begin(), binary_op);
+
+  double expectation = thrust::reduce(marginalDvc.begin(), marginalDvc.end());
+
+  return expectation;
+}
 #endif
