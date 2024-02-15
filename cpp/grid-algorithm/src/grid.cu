@@ -147,24 +147,14 @@ void computeExpectationsWrapper(thrust::device_vector<double> &posterior,
   cudaMallocManaged(&marginalMu, cols * sizeof(double));
   cudaMallocManaged(&marginalSigma, rows * sizeof(double));
 
-  // TODO: This folk should live in cuda_functions.h
-  dim3 threadsPerBlock(256);
-  dim3 numBlocks((rows * cols + threadsPerBlock.x - 1) / threadsPerBlock.x);
+  // Compute the marginals
+  marginalizeCuda(marginalMu, posteriorMatrixMu, rows, cols, 1);
+  marginalizeCuda(marginalSigma, posteriorMatrixSigma, rows, cols, 0);
 
-  marginalize<<<numBlocks, threadsPerBlock>>>(
-    marginalSigma, posteriorMatrixSigma, rows, cols, 0
-  );
-
-  cudaDeviceSynchronize();
-
-  marginalize<<<numBlocks, threadsPerBlock>>>(
-    marginalMu, posteriorMatrixMu, rows, cols, 1
-  );
-
-  cudaDeviceSynchronize();
   printArrayd(marginalSigma, 5);
   printArrayd(marginalMu, 5);
 
+  // Finally, compute the expectations
   double mu = computeExpectationsCuda(marginalMu, vectorMu, rows);
   double sigma = computeExpectationsCuda(marginalSigma, vectorSigma, rows);
 
