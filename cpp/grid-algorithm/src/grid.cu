@@ -106,7 +106,7 @@ void computeLikesWrapper(float *densities, double *likes, int densitiesSize, int
 }
 
 
-void computeExpectationsWrapper(thrust::device_vector<double> &posterior,
+double* computeExpectationsWrapper(thrust::device_vector<double> &posterior,
                                 int likesSize, float *vectorMu,
                                 float *vectorSigma)
 {
@@ -154,17 +154,18 @@ void computeExpectationsWrapper(thrust::device_vector<double> &posterior,
   printArrayd(marginalMu, 5);
 
   // Finally, compute the expectations
-  double mu = computeExpectationsCuda(marginalMu, vectorMu, rows);
-  double sigma = computeExpectationsCuda(marginalSigma, vectorSigma, rows);
-
-  std::cout << "Inferred mu: " << mu << std::endl;
-  std::cout << "Inferred sigma: " << sigma << std::endl;
+  static double expectations[2] = {
+    computeExpectationsCuda(marginalMu, vectorMu, rows),
+    computeExpectationsCuda(marginalSigma, vectorSigma, rows)
+  };
 
   // Free up the memory
   freeMatrix(posteriorMatrixMu, rows);
   freeMatrix(posteriorMatrixSigma, rows);
   cudaFree(marginalMu);
   cudaFree(marginalSigma);
+
+  return expectations;
 }
 
 
@@ -220,10 +221,10 @@ int main(void)
 
   const int vecSize = 101;
   const int gridSize = vecSize * vecSize * rvsSize;
-  const float startMu = 18.0f;
-  const float endMu = 22.0f;
-  const float startSigma = 1.0f;
-  const float endSigma = 3.0f;
+  const float startMu = mu - 2;
+  const float endMu = mu + 2;
+  const float startSigma = sigma - 1;
+  const float endSigma = sigma + 1;
 
   float *vectorMu, *vectorSigma, *densities;
 
@@ -287,7 +288,14 @@ int main(void)
   expectations for the parameters that hopefully will land closer to the values
   we set to generate the variates.
   */
-  computeExpectationsWrapper(posteriorV, likesSize, vectorMu, vectorSigma);
+  double* expectations = computeExpectationsWrapper(
+    posteriorV, likesSize, vectorMu, vectorSigma
+  );
+
+  std::cout << "Inferred mu: " << expectations[0]
+  << "; Actual mu: " << mu <<  std::endl;
+  std::cout << "Inferred sigma: " << expectations[1]
+  << "; Actual sigma: " << sigma << std::endl;
 
 
   /**********
