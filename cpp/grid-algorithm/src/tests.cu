@@ -3,9 +3,11 @@
 #include <curand.h>
 #include <curand_kernel.h>
 #include <thrust/device_vector.h>
+#include <thrust/host_vector.h>
 #include <thrust/sequence.h>
 
 #include "../inc/cuda_functions.h"
+#include "../inc/wrappers.h"
 
 /*
 How to run this test suite:
@@ -204,6 +206,42 @@ TEST(CUDATest, ComputePosterior) {
   EXPECT_NEAR(posteriorV[0], 0.166667, 1e-5);  // 1/6
   EXPECT_NEAR(posteriorV[1], 0.333333, 1e-5);  // 2/6
   EXPECT_EQ(posteriorV[2], 0.5);  // 3/6
+}
+
+TEST(CUDATest, ComputeExpectations) {
+  /*
+       4     5    6     p   w      E
+  1   .1    .1   .1  | .3  .3   |
+  2   .1    .2   .1  | .4  .8   |  2
+  3   .1    .1   .1  | .3  .89  |
+  --------------------
+  p   .3    .4   .3
+  w  1.2   2.0  1.8
+  --------------------
+  E        5.0
+  */
+  int size = 9;
+  thrust::device_vector<double> posterior(size);
+  thrust::fill(posterior.begin(), posterior.end(), .1);
+  posterior[4] = .2;
+
+  float *vectorMu, *vectorSigma;
+  cudaMallocManaged(&vectorMu, 3 * sizeof(float));
+  cudaMallocManaged(&vectorSigma, 3 * sizeof(float));
+
+  linspaceCuda(vectorMu, 3, 1.0f, 3.0f);
+  linspaceCuda(vectorSigma, 3, 4.0f, 6.0f);
+
+  double* expectations = computeExpectationsWrapper(
+    posterior, vectorMu, vectorSigma
+  );
+
+  EXPECT_EQ(expectations[0], 2.0f);
+  EXPECT_EQ(expectations[1], 5.0f);
+
+
+  cudaFree(vectorMu);
+  cudaFree(vectorSigma);
 }
 
 
