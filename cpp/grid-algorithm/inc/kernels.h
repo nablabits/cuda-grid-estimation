@@ -110,8 +110,8 @@ __device__ float normalPdf(float x, float mu, float sigma) {
 }
 
 
-__global__ void computeDensitiesKernel(float *likes, float *gridX, float *gridY,
-                                   float *gridZ, int gridSize)
+__global__ void computeDensitiesKernel(float *densities, float *gridX,
+                                       float *gridY, float *gridZ, int gridSize)
 {
   /* Compute the densities on the device.
 
@@ -127,7 +127,7 @@ __global__ void computeDensitiesKernel(float *likes, float *gridX, float *gridY,
     float x = gridZ[i];
     float sigma = gridY[i];
     float mu = gridX[i];
-    likes[i] = normalPdf(x, mu, sigma);
+    densities[i] = normalPdf(x, mu, sigma);
   }
 }
 

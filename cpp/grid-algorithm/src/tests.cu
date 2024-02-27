@@ -201,7 +201,7 @@ TEST(CUDATest, ComputePosterior) {
   // Populate the likes vector
   thrust::sequence(likesV.begin(), likesV.end(), 1.0);  // 1.0, 2.0, 3.0
 
-  computePosteriorCuda(likesV, posteriorV, size);
+  computePosteriorCuda(likesV, posteriorV);
 
   EXPECT_NEAR(posteriorV[0], 0.166667, 1e-5);  // 1/6
   EXPECT_NEAR(posteriorV[1], 0.333333, 1e-5);  // 2/6

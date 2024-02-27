@@ -56,7 +56,7 @@ void computeLikesWrapper(float *densities, double *likes, int densitiesSize, int
   Wrap the operations needed to compute the likelihood function.
   */
 
-  double **likesMatrix;
+    densities: the array of densities for each mu, sigma and obs. (101x101x50)
   int rows = likesSize;  // 101x101 rows
   int cols = densitiesSize / likesSize;  // of 50 elements each
 
@@ -65,18 +65,12 @@ void computeLikesWrapper(float *densities, double *likes, int densitiesSize, int
     return;
   }
 
-  cudaMallocManaged(&likesMatrix, rows * sizeof(double*));
-  for (int i = 0; i < rows; i++) {
-    cudaMallocManaged(&likesMatrix[i], cols * sizeof(double));
-  }
+  double **likesMatrix = allocateMatrix(rows, cols);
 
   reshapeArray<float, double>(densities, likesMatrix, cols, rows);
   computeLikesCuda(likes, likesMatrix, rows, cols);
 
-  for (int i = 0; i < cols; i++) {
-    cudaFree(likesMatrix[i]);
-  }
-  cudaFree(likesMatrix);
+  freeMatrix(likesMatrix, rows);
 }
 
 
@@ -101,8 +95,8 @@ double* computeExpectationsWrapper(thrust::device_vector<double> &posterior,
 
   int side = std::sqrt(posterior.size());
 
-  double **posteriorMatrixMu = createMatrix(side, side);
-  double **posteriorMatrixSigma = createMatrix(side, side);
+  double **posteriorMatrixMu = allocateMatrix(side, side);
+  double **posteriorMatrixSigma = allocateMatrix(side, side);
 
   // Now we reshape the posterior vector. We make a host_vector which is more
   // flexible to work with

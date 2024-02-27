@@ -127,14 +127,14 @@ void computePosteriorCuda(
 }
 
 void marginalizeCuda(
-  double* marginal, double**marginalMatrix, int rows, int cols, int axis)
+  double* marginal, double**posteriorMatrix, int rows, int cols, int axis)
 {
   /* Define the configuration of the marginalize Kernel. */
   dim3 threadsPerBlock(256);
   dim3 numBlocks((rows * cols + threadsPerBlock.x - 1) / threadsPerBlock.x);
 
   marginalizeKernel<<<numBlocks, threadsPerBlock>>>(
-    marginal, marginalMatrix, rows, cols, axis
+    marginal, posteriorMatrix, rows, cols, axis
   );
 
   cudaDeviceSynchronize();

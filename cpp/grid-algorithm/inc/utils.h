@@ -59,7 +59,7 @@ void reshapeArray(T *flatArray, V **output, int m, int n)
   }
 }
 
-double** createMatrix(int rows, int cols)
+double** allocateMatrix(int rows, int cols)
 {
   double **output;
   cudaMallocManaged(&output, rows * sizeof(double*));
