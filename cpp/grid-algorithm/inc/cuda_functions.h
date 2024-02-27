@@ -11,7 +11,17 @@
 
 
 void generateNormalCuda(unsigned int n, float mu, float sigma,
-                        float *observations) {
+                        float *observations)
+{
+  /*
+  Define the configuration of the kernels to generate random variates.
+
+  Arguments:
+    n: the number of variates to generate.
+    mu: the mean of the normal distribution.
+    sigma: the standard deviation of the normal distribution.
+    observations: the array where the random variates will be stored.
+  */
   const unsigned int threadsPerBlock = 64;
   const unsigned int numBlocks = (n + threadsPerBlock  -1) / threadsPerBlock;
 
@@ -34,7 +44,8 @@ void generateNormalCuda(unsigned int n, float mu, float sigma,
 }
 
 
-void linspaceCuda(float* array, int size, float start, float end) {
+void linspaceCuda(float* array, int size, float start, float end)
+{
     /*
     Define the configuration of the linspace kernel.
 
@@ -55,7 +66,19 @@ void create3dGridCuda(float *vecX, float *vecY, float *vecZ,
                   float *gridX, float *gridY, float *gridZ,
                   int vecXYSize, int vecZSize)
 {
-  /* Define the configuration of the create3dGrid kernel. */
+  /*
+  Define the configuration of the create3dGrid kernel.
+
+  Arguments:
+    vecX: the first vector
+    vecY: the second vector
+    vecZ: the third vector
+    gridX: the grid of the first vector to be filled
+    gridY: the grid of the second vector to be filled
+    gridZ: the grid of the third vector to be filled
+    vecXYSize: the size of the vectors vecX and vecY
+    vecZSize: the size of the vector vecZ
+  */
   dim3 threadsPerBlock(4, 4, 4);
   dim3 numBlocks((vecXYSize + threadsPerBlock.x - 1) / threadsPerBlock.x,
                  (vecXYSize + threadsPerBlock.y - 1) / threadsPerBlock.y,
@@ -72,7 +95,16 @@ void create3dGridCuda(float *vecX, float *vecY, float *vecZ,
 void computeDensitiesCuda(float *densities, float *gridX, float *gridY,
                           float *gridZ, int gridSize)
 {
-  /* Define the configuration of the computeDensitiesKernel. */
+  /*
+  Define the configuration of the computeDensitiesKernel.
+
+  Arguments:
+    densities: the array where we will store the computed densities.
+    gridX: the array of values for mu as an outer product `mu x sigma x obs`
+    gridY: the array of values for sigma as an outer product `mu x sigma x obs`
+    gridZ: the array of values for the observations as an outer product
+    gridSize: the size of all above arrays (101x101x50)
+  */
   dim3 threadsPerBlock(256);
   dim3 numBlocks((gridSize + threadsPerBlock.x - 1) / threadsPerBlock.x);
 
@@ -80,18 +112,20 @@ void computeDensitiesCuda(float *densities, float *gridX, float *gridY,
                                                          gridY, gridZ, gridSize);
 
   cudaDeviceSynchronize();
-
-  // TODO: remove these guys once we are done with the full algorithm
-  printArray(gridX, 10);
-  printArray(gridY, 10);
-  printArray(gridZ, 10);
-  printArray(densities, 10);
 }
 
 
 void computeLikesCuda(double *likes, double **likesMatrix, int rows, int cols)
 {
-  /* Define the configuration of the computeLikesKernel. */
+  /*
+  Define the configuration of the computeLikesKernel.
+
+  Arguments:
+    likes: the array where we will store the likelihoods (101x101)
+    likesMatrix: matrix of the outer product mu x sigma and the obs.
+    rows: the number of rows of the matrix (10201)
+    cols: the number of columns of the matrix (50)
+  */
   dim3 threadsPerBlock(256);
   dim3 numBlocks((rows * cols + threadsPerBlock.x - 1) / threadsPerBlock.x);
 
@@ -99,25 +133,23 @@ void computeLikesCuda(double *likes, double **likesMatrix, int rows, int cols)
 
   // Always synchronize before printing data.
   cudaDeviceSynchronize();
-
-  // TODO: remove these guys once we are done with the full algorithm
-  printf("------->\n");
-  printArrayd(likes, 10);
 }
 
 
-void computePosteriorCuda(
-  thrust::device_vector<double>& likesV,
-  thrust::device_vector<double>& posteriorV,
-  int likesSize
-)
+void computePosteriorCuda(thrust::device_vector<double>& likesV,
+                          thrust::device_vector<double>& posteriorV)
 {
-  /* Compute the posterior using thrust library
+  /*
+  Compute the posterior using thrust library
 
   In the posterior we just need to normalize the likes vector as we are assuming
   a flat prior. Had we chosen some custom prior we would have needed to first
   compute joint prob between the prior and the likes before normalization as
   usual with Bayes theorem.
+
+  Arguments:
+    likesV: a device vector containing the likelihoods
+    posteriorV: a device vector that will store the posteriors
   */
 
   double sum = thrust::reduce(likesV.begin(), likesV.end());
@@ -129,7 +161,16 @@ void computePosteriorCuda(
 void marginalizeCuda(
   double* marginal, double**posteriorMatrix, int rows, int cols, int axis)
 {
-  /* Define the configuration of the marginalize Kernel. */
+  /*
+  Define the configuration of the marginalize Kernel.
+
+  Arguments:
+    marginal: the array where the marginal will be stored. (101)
+    posteriorMatrix: the matrix that contains the posteriors
+    rows: the number of rows in the posteriorMatrix (101)
+    columns: the number of columns in the posteriorMatrix (101)
+    axis: the axis over which the marginalization will be performed.
+  */
   dim3 threadsPerBlock(256);
   dim3 numBlocks((rows * cols + threadsPerBlock.x - 1) / threadsPerBlock.x);
 
@@ -144,8 +185,15 @@ void marginalizeCuda(
 double computeExpectationsCuda(double *marginal, float *vector, int size)
 {
   /*
-  Compute the weighted average between an array of probabilities and an array
-  of values.
+  Compute the weighted average between an array of probs and an array of values.
+
+  Arguments:
+    marginal: the array that contains the marginals either mu or sigma. (101)
+    vector: the linspace of ranges of mu or sigma. (101)
+    size: the size of either each array. (101)
+
+  Returns:
+    The expected value.
   */
 
   // Thrust vectors will make the whole operation a piece of cake, so let's

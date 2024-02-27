@@ -68,40 +68,6 @@ int main(void)
     return 1;
   }
 
-  printArray(observations, rvsSize);
-
-  /*******************
-  * Create the Grids *
-  *******************/
-
- /*
-  We need a grid with the outer product of three vectors that will represent the
-  combinations of the parameters we want to estimate. This is, if our vectors
-  are [1, 2, 3] & [4, 5 ,6] & [1, 2] then our outer product will be:
-
-  [1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3]
-  [4, 4, 5, 5, 6, 6, 4, 4, 5, 5, 6, 6, 4, 4, 5, 5, 6, 6]
-  [1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2]
-
-  We use extensively the word `grid`, but it won't be a proper grid as the
-  output will be a vector. Granted, a vector with the same elements as the grid,
-  v1 x v2 x v3, but a vector after all.
- */
-
-  const int vecSize = 101;
-  const int gridSize = vecSize * vecSize * rvsSize;
-  const float startMu = mu - 2;
-  const float endMu = mu + 2;
-  const float startSigma = sigma - 1;
-  const float endSigma = sigma + 1;
-
-  float *vectorMu, *vectorSigma, *densities;
-
-  CUDA_CALL(cudaMallocManaged(&vectorMu, vecSize * sizeof(float)));
-  CUDA_CALL(cudaMallocManaged(&vectorSigma, vecSize * sizeof(float)));
-  CUDA_CALL(cudaMallocManaged(&densities, gridSize * sizeof(float)));
-  CUDA_CALL(cudaMemset(densities, 0, gridSize * sizeof(int)));
-
   /*************************
   * Compute the Likelihood *
   *************************/
@@ -118,14 +84,33 @@ int main(void)
   likes     [  0.0096,      .0062,   ...]  101x101
   */
 
+  const int vecSize = 101;
+  const int gridSize = vecSize * vecSize * rvsSize;
+  const float startMu = mu - 2;
+  const float endMu = mu + 2;
+  const float startSigma = sigma - 1;
+  const float endSigma = sigma + 1;
+
+  float *vectorMu, *vectorSigma, *densities;
+
+  CUDA_CALL(cudaMallocManaged(&vectorMu, vecSize * sizeof(float)));
+  CUDA_CALL(cudaMallocManaged(&vectorSigma, vecSize * sizeof(float)));
+  CUDA_CALL(cudaMallocManaged(&densities, gridSize * sizeof(float)));
+  CUDA_CALL(cudaMemset(densities, 0, gridSize * sizeof(int)));
+
   computeDensitiesWrapper(vectorMu, vectorSigma, observations, densities,
                           startMu, endMu, startSigma, endSigma, vecSize,
                           rvsSize);
+
+  CUDA_CALL(cudaFree(observations));
 
   double *likes;
   const int likesSize = vecSize * vecSize;
   CUDA_CALL(cudaMallocManaged(&likes, likesSize * sizeof(double)));
   computeLikesWrapper(densities, likes, gridSize, likesSize);
+
+  // We don't need the densities anymore as we now have the likelihoods.
+  CUDA_CALL(cudaFree(densities));
 
   /*************************
    * Compute the Posterior *
@@ -134,19 +119,21 @@ int main(void)
   /*
   In principle we will asume a flat prior, which has no impact on the
   likelihoods. But we still need to normalize them so they will add up to 1.
+  For the normalization we will need to divide each of the values by the sum of
+  the whole array.
+
+  We start by building thrust vectors out of the likes array so we can easily
+  and efficiently compute the sum of the array. The first bit is taking the
+  initial value of `likes` and then copying over the rest of the array up to 
+  `likesSize` with `likes + likesSize`. 
+  Then, we just create another vector that will hold the posteriors.
   */
 
 
-  // We start by building thrust vectors out of the likes array so we can
-  // easily and efficiently compute the sum of the array. The first bit is
-  // taking the initial value of `likes` and then copying over the rest of the
-  // array up to `likesSize` with `likes + likesSize`
-  // Then, we just create another vector that will hold the posteriors.
-
-  // TODO: it might be a good idea to use host vectors before and after
   thrust::device_vector<double> likesV(likes, likes + likesSize);
   thrust::device_vector<double> posteriorV(likesSize);
-  computePosteriorCuda(likesV, posteriorV, likesSize);
+  computePosteriorCuda(likesV, posteriorV);
+  CUDA_CALL(cudaFree(likes));
 
   /*************************
    * Compute the Marginals *
@@ -170,13 +157,8 @@ int main(void)
   /**********
   * Cleanup *
   **********/
-
-  // TODO: maybe we can free the elements as soon as we dont need them.
-  CUDA_CALL(cudaFree(observations));
   CUDA_CALL(cudaFree(vectorMu));
   CUDA_CALL(cudaFree(vectorSigma));
-  CUDA_CALL(cudaFree(densities));
-  CUDA_CALL(cudaFree(likes));
 
   return 0;
 }

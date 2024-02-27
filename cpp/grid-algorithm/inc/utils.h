@@ -5,23 +5,6 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-void printArray(float *arr, int n=3) {
-  /* Handy function to print arrays. */
-  for (int i = 0; i < n; i++) {
-    std::cout << arr[i] << ", ";
-  }
-  std::cout << std::endl;
-}
-
-// TODO: I need a template for this
-void printArrayd(double *arr, int n=3) {
-  /* Handy function to print arrays. */
-  for (int i = 0; i < n; i++) {
-    std::cout << arr[i] << ", ";
-  }
-  std::cout << std::endl;
-}
-
 
 void checkArrays(float *gridX, float *gridY, float *gridZ)
 {
@@ -51,7 +34,15 @@ void checkArrays(float *gridX, float *gridY, float *gridZ)
 template <class T, class V>
 void reshapeArray(T *flatArray, V **output, int m, int n)
 {
-  // Convert a flat vector into a m x n matrix
+  /*
+  Convert a flat vector into a m x n matrix
+
+  Arguments:
+    flatArray: the array to be transformed.
+    output: the matrix that will store the transformation.
+    m: the number of rows.
+    n: the number of columns
+  */
   for (int i = 0; i < n; ++i) {
     for (int j = 0; j < m; ++j) {
       output[i][j] = flatArray[i * m + j];
@@ -61,6 +52,7 @@ void reshapeArray(T *flatArray, V **output, int m, int n)
 
 double** allocateMatrix(int rows, int cols)
 {
+  /*Allocate a matrix of the given size of rows & cols.*/
   double **output;
   cudaMallocManaged(&output, rows * sizeof(double*));
   for (int i = 0; i < rows; i++) {
@@ -96,9 +88,13 @@ void saxpy_fast(
   double A, thrust::device_vector<double>& X, thrust::device_vector<double>& Y
   )
 {
-  // https://docs.nvidia.com/cuda/thrust/index.html#transformations
-  // https://chat.openai.com/c/ecd2c19e-4e91-44fc-9ff8-bbf1dca99eff
-  // Y <- A * X + Y.
+  /*
+  Compute Y <- A * X + Y on the device using a functor.
+
+  https://docs.nvidia.com/cuda/thrust/index.html#transformations
+  https://chat.openai.com/c/ecd2c19e-4e91-44fc-9ff8-bbf1dca99eff
+  */
+
   thrust::transform(X.begin(), X.end(), Y.begin(), Y.begin(), saxpy_functor(A));
 }
 
