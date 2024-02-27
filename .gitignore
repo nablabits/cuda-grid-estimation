@@ -8,3 +8,6 @@
 .vim
 .swp
 tags
+
+# Generated bins
+bin/
