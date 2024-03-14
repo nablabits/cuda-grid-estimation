@@ -60,6 +60,30 @@ print(
 ```
 
 #### Visualization
+Basically you can think of the posterior as a kind of hill like this:
+
+![normal distribution](assets/normal-distribution.jpg)
+
+Where the $(x, y)$ plane are ranges of possible values of $\mu$ and $\sigma$ we want to explore. The crux of the problem, though, is how the height of the hill is calculated for each pair $(\mu, \sigma)$ out of the observations.
+
+These observations are a sort of joint probability, this is, you need to know the probability of finding **all those values** under the assumption of some $(\mu_i, \sigma_i)$. If we were evaluating the observations under $(20, 2)$ this is what we would find:
+
+![observations](assets/observations.png)
+
+The resulting joint probability will then be:
+
+$$x_1\;\cdot x_2\;\cdot x_3$$
+
+where $x_1, x_2, x_3$ are the observations
+
+> [!NOTE] Probability densities are not probabilities  
+> We are loosely talking all the time about joint probability but, recall that probability densities are not probabilities, to find out the probability one needs to integrate over a range. However, bayesian statistics deals perfectly well with these densities as the only thing it cares about are proportions and, after all, we will be normalizing the outcomes at the end so all the volume under the hill will be $1$
+
+Now, there's a point where the joint probability get's maximized for a pair of parameters, i.e., the peak of the hill which in our case will match the expected value as this is a very contrived example based on normal distributions. To find it out, we need to compute the marginals, that is, isolate each of the parameters and compute the expectation. These marginals look like the green and blue lines in the walls of the plot, i.e., the margins:
+
+![marginals](assets/normal-distribution-with-marginals.png)
+
+
 ## Run It!
 ### Installation
 - python and cuda requirements
@@ -83,3 +107,4 @@ print(
 ### Additional Resources
 I'd guess that not a lot of people will reach this part alive and if they do they will be unlikely
 to check these references. If you are in that negligible tier, here you go, though.
+
