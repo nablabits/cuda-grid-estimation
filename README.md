@@ -86,12 +86,61 @@ Now, there's a point where the joint probability get's maximized for a pair of p
 
 ## Run It!
 ### Installation
-- python and cuda requirements
+
+#### C++
+In terms of `c++` you will need:
+- The `gcc` library or your OS equivalent to compile c++ code. 
+- the [google test suite](https://google.github.io/googletest/quickstart-cmake.html) for the tests
+
+#### CUDA
+You will need the CUDA Toolkit provided by NVIDIA, refer to [their documentation](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#) to install it. The Ubuntu instructions worked overall fine for me, however the [post actions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#ubuntu) were not completely clear as in the POWER9 Setup `systemctl` complained that the service was masked:
+
+
+`Loaded: masked (Reason: Unit nvidia-persistenced.service is masked.)`
+
+You can unmask it with
+```bash
+ sudo systemctl unmask nvidia-persistenced.service
+ ```
+
+ [Source](https://unix.stackexchange.com/questions/308904/systemd-how-to-unmask-a-service-whose-unit-file-is-empty)
+
+I have been using the CUDA Toolkit 12.2 on a GeForce 1650 with compute capability `7.5`. In principle Nvidia sells that every card is fully backwards compatible but it appears to me that if you are below compute capability `5.0`, managed memory may well be a pain. Check the [unified memory section](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#unified-memory-on-devices-without-full-cuda-unified-memory-support) on the programming guide for an explanation on the limitations.
+
+#### Python Requirements
+To be able to run the notebook, you will need some python libraries that are defined in the `requirements.txt` file. Just create the virtual environment of your preference and install them:
+
+```bash
+pip install --upgrade pip && pip install -r requirements.txt
+```
 
 ### Execution
-(it does not accept parameters, for the time being)
+The actual `c++` code does not accept parameters, for the time being, but you can run it following these steps:
+
+1. Go to the `c++` implementation directory and make the binaries:
+```bash
+cd cpp/grid-algorithm
+make all
+```
+2. This above should have created an executable, run it:
+```bash
+./bin/grid
+```
 
 ### Tests
+If you have run above step, you should already have a binary as well for the tests and you can run them by:
+
+```bash
+./bin/tests
+```
+
+### Debug
+If you are trying to debug the code, it's always a good idea to run the executables with `compute-sanitizer` which is part of the CUDA toolkit:
+
+```bash
+compute-sanitizer ./bin/grid
+```
+
 
 ## Making Sense
 

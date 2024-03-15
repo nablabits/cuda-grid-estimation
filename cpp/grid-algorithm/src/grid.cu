@@ -16,28 +16,6 @@
     printf("Error at %s:%d\n",__FILE__,__LINE__); \
     return EXIT_FAILURE;}} while(0)
 
-/*
-Sources:
-https://developer.nvidia.com/blog/efficient-cuda-debugging-memory-initialization-and-thread-synchronization-with-nvidia-compute-sanitizer/
-
-https://docs.nvidia.com/cuda/curand/group__DEVICE.html
-
-https://chat.openai.com/c/ba212caf-491f-4dfd-ac4f-ce2132672561
-
-TODO: Move them to a note on obsidian once we are done along with the learnings
-
-How to run this:
-
-cd cpp/grid-algorithm
-make all
-
-# always check that we are not doing something spooky under the hood
-compute-sanintizer ./bin/grid
-
-# Run the binary
-./bin/grid
-*/
-
 int main(void)
 {
   /*******************************
