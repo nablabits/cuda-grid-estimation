@@ -5,23 +5,25 @@
 
 
 ## TL;DR
-A primer on CUDA, c++ when one is familiar with Python's scientific ecosystem (pandas, numpy & scipy)
+A primer on CUDA & c++ when one is familiar with Python's scientific ecosystem (pandas, numpy & scipy)
 
 
 > [!TIP]
-> Open the outline there on the top right corner of the github interface.
+> Open the outline there on the top right corner of the github interface to make sense of the ToC ↗️
 
 ## Introduction
 ### Motivation
-At some point last year with all this hype of LLMs and Deep Learning overall I somehow realized that getting acquainted with this whole CUDA thing, which is at the core of the heavy lifting when it comes to train deep learning models, may well be a good idea. In addition, I had no previous experience with `c++` which made this project appealing to me as a first contact point with compiled languages. As I'm quite familiar with python's scientific ecosystem (namely, pandas, numpy, scipy...) I thought that kicking off from there would be efficient to have a guide on what to implement.
+At some point last year with all this hype of LLMs and Deep Learning overall I somehow realized that getting acquainted with this whole CUDA thing, which is at the core of the heavy lifting when it comes to train deep learning models, may well be a good idea. 
+
+In addition, I had no previous experience with `c++` which made this project appealing to me as a first contact point with compiled languages. As I'm quite familiar with python's scientific ecosystem (namely, pandas, numpy, scipy...) I thought that kicking off from there would be efficient to have a guide on what to implement.
 
 ### Intended Public
 If you are starting with `c++` and familiar with python's scientific ecosystem, this repository may well be a good support to your learning and/or give you some idea about where to start. Just bear in mind that this project is a sort of a crash course on the subject, so be extra careful with the content you find here. More than ever, perform your own parallel searches to discover possible pitfalls or errors I may have overlooked.
 
 ### Brief Description
-The main goal of the algorithm is to predict using bayesian statistics the parameters of a normal distribution, namely $\mu$ and $\sigma$, out of some set of observations.
+The repository contains an algorithm written in CUDA/c++, that is aimed to predict, using bayesian statistics, the parameters of a normal distribution, namely $\mu$ and $\sigma$, out of some set of observations.
 
-Specifically, let's say that you go out there and gather some data about some process. Of course, before inspecting it, you have for whatever reason, a reasonable guess that the process you are investigating is normally distributed. You might want to know the parameters of the distribution because that will give you an insight about how your system might behave in the long run and, crucially, the level of credence that you should put in those parameters, although, we won't compute this latter.
+Specifically, let's say that you go out there and gather some data about some process. Even more, before inspecting it, you have for whatever reason, a reasonable guess that the process you are investigating is normally distributed. You might want to know the parameters of the distribution because that will give you an insight about how your system might behave in the long run and, crucially, the level of credence that you should put in those parameters (although, we won't compute this latter).
 
 Of course, this is a highly contrived example because the goal is not to learn bayesian statistics but rather to learn CUDA. If you want to learn more about the former, the origin of the algorithm is in the [Think Bayes Book](https://github.com/nablabits/ThinkBayes2/blob/master/notebooks/13-inference.ipynb) by [Allen Downey](https://github.com/AllenDowney) which is a great resource to get started in the topic when one is familiar with Python.
 
@@ -64,7 +66,7 @@ Basically you can think of the posterior as a kind of hill like this:
 
 ![normal distribution](assets/normal-distribution.jpg)
 
-Where the $(x, y)$ plane are ranges of possible values of $\mu$ and $\sigma$ we want to explore. The crux of the problem, though, is how the height of the hill is calculated for each pair $(\mu, \sigma)$ out of the observations.
+Where the $(x, y)$ plane are the ranges of possible values of $\mu$ and $\sigma$ we want to explore. The crux of the problem, though, is how the height of the hill is calculated for each pair $(\mu, \sigma)$ out of the observations.
 
 These observations are a sort of joint probability, this is, you need to know the probability of finding **all those values** under the assumption of some $(\mu_i, \sigma_i)$. If we were evaluating the observations under $(20, 2)$ this is what we would find:
 
@@ -90,7 +92,7 @@ Now, there's a point where the joint probability get's maximized for a pair of p
 #### C++
 In terms of `c++` you will need:
 - The `gcc` library or your OS equivalent to compile c++ code. 
-- the [google test suite](https://google.github.io/googletest/quickstart-cmake.html) for the tests
+- The [google test suite](https://google.github.io/googletest/quickstart-cmake.html) for the tests
 
 #### CUDA
 You will need the CUDA Toolkit provided by NVIDIA, refer to [their documentation](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#) to install it. The Ubuntu instructions worked overall fine for me, however the [post actions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#ubuntu) were not completely clear as in the POWER9 Setup `systemctl` complained that the service was masked:
@@ -115,7 +117,7 @@ pip install --upgrade pip && pip install -r requirements.txt
 ```
 
 ### Execution
-The actual `c++` code does not accept parameters, for the time being, but you can run it following these steps:
+The actual `c++` code does not accept parameters, for the time being, but you can run it for the default ones by following these steps:
 
 1. Go to the `c++` implementation directory and make the binaries:
 ```bash
@@ -135,25 +137,30 @@ If you have run above step, you should already have a binary as well for the tes
 ```
 
 ### Debug
-If you are trying to debug the code, it's always a good idea to run the executables with `compute-sanitizer` which is part of the CUDA toolkit:
+If you are trying to debug the code, it's always a good idea to run the executables with `compute-sanitizer` which is part of the CUDA toolkit and it will complain if you are doing something fishy:
 
 ```bash
 compute-sanitizer ./bin/grid
 ```
 
-
-## Making Sense
-
-### File Structure
-(may not be necessary)
-
-### Logic Flow
+## File Structure
+Here's a brief explanation of the directories tree:
+- `cpp`: Main C++ implementation
+    - `inc`: header files for the main functions
+        - `cuda_functions.h`: a header file containing the specific sizes of the grids sent to a cuda kernel. Put it another way, an intermediate step between a wrapper function and the cuda kernel.
+        - `kernels.h`: the main fuctions executed on the device (i.e., the GPU).
+        - `utils.h`: some utility functions.
+        - `wrappers.h`: it contains functions that wrap actions so the `main` routine will have a few logic blocks matching up the descriptions in the jupyter notebook.
+    - `src`: the source code of the implementation
+        - `grid.cu`: the main routine of the implementation
+        - `tests.cs`: the test suite
+- `notebooks`: it contains the the notebook with the python equivalent along with some inline annotations and comments.
 
 ## Resources
+I'd guess that not a lot of people will reach this part alive and if they do they will be unlikely to check these references. If you are in that negligible tier, though, here you go.
 
-### Getting Started with CUDA and C++
+In my learning journey these folks worked really well for me:
 
-### Additional Resources
-I'd guess that not a lot of people will reach this part alive and if they do they will be unlikely
-to check these references. If you are in that negligible tier, here you go, though.
-
+- [CUDA programming guide](https://docs.nvidia.com/cuda/cuda-c-programming-guide/contents.html): this is a fundamental, you don't need to cover it all, but at least the two first chapters. Some of the examples are in the [cuda-samples](https://github.com/nablabits/cuda-samples) repo which is a bit hard to make sense if you are not familiar with `c++`
+- [An Even Easier Introduction to CUDA](https://courses.nvidia.com/courses/course-v1:DLI+T-AC-01+V1/) provided by NVIDIA is great once you have some familiarity with the programming guide as it will allow you to craft some actual code.
+- [Numba tutorial](https://github.com/nablabits/gtc2020-numba) that implements CUDA objects via Python in case you are familiar with the language
